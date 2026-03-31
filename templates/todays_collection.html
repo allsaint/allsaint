@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Today's Collection | Billing Dashboard - All Saint Medical Center</title>
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- AOS Animation Library -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <style>
+        /* ===== CONSISTENT DESIGN SYSTEM ===== */
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --primary-light: #6c8cff;
+            --secondary: #7209b7;
+            --success: #06d6a0;
+            --warning: #ff9e00;
+            --danger: #ef476f;
+            --info: #00b4d8;
+            --dark: #0b0f1c;
+            --darker: #070b14;
+            --light: #f8f9ff;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+            
+            --gradient-primary: linear-gradient(135deg, #4361ee 0%, #7209b7 100%);
+            --gradient-success: linear-gradient(135deg, #06d6a0 0%, #00b4d8 100%);
+            
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.02);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1);
+            --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,0.25);
+            
+            --border-radius: 12px;
+            --border-radius-lg: 16px;
+            --border-radius-xl: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e6ecf5 100%);
+            color: var(--gray-800);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(67, 97, 238, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(114, 9, 183, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+            animation: gradientShift 15s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInLeft {
+            from { transform: translateX(-30px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(30px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== TOP BAR ===== */
+        .topbar {
+            background: var(--gradient-primary);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-lg);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .user-info h2 {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            letter-spacing: -0.5px;
+        }
+
+        .user-info p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .logout-btn:hover {
+            background: white;
+            color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        /* ===== MAIN CONTAINER ===== */
+        .todays-collection-container {
+            padding: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* ===== BACK BUTTON ===== */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: white;
+            color: var(--primary);
+            padding: 0.75rem 1.5rem;
+            border-radius: 30px;
+            text-decoration: none;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            box-shadow: var(--shadow-md);
+            border: 2px solid transparent;
+        }
+
+        .back-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateX(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .back-btn i {
+            transition: transform 0.3s ease;
+        }
+
+        .back-btn:hover i {
+            transform: translateX(-3px);
+        }
+
+        /* ===== HEADER SECTION ===== */
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+            animation: slideInLeft 0.8s ease-out;
+        }
+
+        .header-section h1 {
+            color: var(--gray-900);
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-section h1 i {
+            color: var(--primary);
+            background: rgba(67, 97, 238, 0.1);
+            padding: 0.75rem;
+            border-radius: 12px;
+        }
+
+        .date-display {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 30px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: var(--shadow-lg);
+            margin-top: 0.5rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .export-btn, .refresh-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 30px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .export-btn {
+            background: var(--success);
+            color: white;
+            box-shadow: 0 4px 10px rgba(6, 214, 160, 0.3);
+        }
+
+        .export-btn:hover {
+            background: #05b386;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(6, 214, 160, 0.4);
+        }
+
+        .refresh-btn {
+            background: var(--info);
+            color: white;
+            box-shadow: 0 4px 10px rgba(0, 180, 216, 0.3);
+        }
+
+        .refresh-btn:hover {
+            background: #0096c7;
+            transform: translateY(-3px) rotate(90deg);
+            box-shadow: 0 6px 15px rgba(0, 180, 216, 0.4);
+        }
+
+        /* ===== STATS ROW ===== */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+            animation: fadeIn 0.8s ease-out 0.1s both;
+        }
+
+        .stat-box {
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+            border: 1px solid var(--gray-200);
+            text-align: center;
+        }
+
+        .stat-box:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1.2;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ===== SUMMARY CARDS ===== */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--border-radius-xl);
+            box-shadow: var(--shadow-lg);
+            transition: all 0.3s ease;
+            border: 1px solid var(--gray-200);
+            position: relative;
+            overflow: hidden;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .summary-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .summary-card.grand-total::before { background: var(--gradient-primary); }
+        .summary-card.cash::before { background: var(--success); }
+        .summary-card.card::before { background: var(--primary); }
+        .summary-card.transfer::before { background: var(--secondary); }
+        .summary-card.pos::before { background: var(--warning); }
+        .summary-card.insurance::before { background: var(--info); }
+
+        .summary-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-2xl);
+        }
+
+        .summary-card.grand-total {
+            background: var(--gradient-primary);
+            color: white;
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: inherit;
+        }
+
+        .card-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin: 0.5rem 0;
+            line-height: 1.2;
+        }
+
+        .card-label {
+            font-size: 0.9rem;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-card.grand-total .card-label,
+        .summary-card.grand-total .card-icon {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .percentage-text {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+            margin-top: 0.5rem;
+        }
+
+        /* ===== BREAKDOWN SECTION ===== */
+        .breakdown-section {
+            background: white;
+            border-radius: var(--border-radius-xl);
+            box-shadow: var(--shadow-lg);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            animation: slideInRight 0.8s ease-out;
+        }
+
+        .section-title {
+            color: var(--gray-900);
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .section-title i {
+            color: var(--primary);
+            background: rgba(67, 97, 238, 0.1);
+            padding: 0.75rem;
+            border-radius: 12px;
+        }
+
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: var(--gray-100);
+            border-radius: var(--border-radius);
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .breakdown-item:hover {
+            background: white;
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .method-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .method-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        .method-icon.cash { background: var(--success); }
+        .method-icon.card { background: var(--primary); }
+        .method-icon.transfer { background: var(--secondary); }
+        .method-icon.pos { background: var(--warning); }
+        .method-icon.insurance { background: var(--info); }
+
+        .method-name {
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .method-count {
+            font-size: 0.8rem;
+            color: var(--gray-500);
+        }
+
+        .method-amount {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--gray-900);
+        }
+
+        /* ===== PERCENTAGE BARS ===== */
+        .percentage-bar {
+            height: 8px;
+            background: var(--gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .percentage-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1s ease-in-out;
+        }
+
+        .percentage-fill.cash { background: var(--success); }
+        .percentage-fill.card { background: var(--primary); }
+        .percentage-fill.transfer { background: var(--secondary); }
+        .percentage-fill.pos { background: var(--warning); }
+        .percentage-fill.insurance { background: var(--info); }
+
+        /* ===== TRANSACTIONS TABLE ===== */
+        .transactions-table-container {
+            background: white;
+            border-radius: var(--border-radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+
+        .transactions-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .transactions-table thead {
+            background: var(--gradient-primary);
+            color: white;
+        }
+
+        .transactions-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .transactions-table tbody tr {
+            border-bottom: 1px solid var(--gray-200);
+            transition: all 0.3s ease;
+        }
+
+        .transactions-table tbody tr:hover {
+            background: var(--gray-100);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .transactions-table td {
+            padding: 1rem;
+            color: var(--gray-700);
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .status-paid {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+        }
+
+        .status-partial {
+            background: linear-gradient(135deg, #fff3cd, #ffeeba);
+            color: #856404;
+        }
+
+        .action-btn {
+            background: var(--primary);
+            color: white;
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--gray-500);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            animation: float 3s infinite;
+        }
+
+        .empty-state h3 {
+            font-weight: 700;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== TIMELINE CARDS ===== */
+        .timeline-card {
+            background: var(--gray-100);
+            padding: 1.5rem;
+            border-radius: var(--border-radius-lg);
+            transition: all 0.3s ease;
+        }
+
+        .timeline-card:hover {
+            background: white;
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-5px);
+        }
+
+        .timeline-card h3 {
+            color: var(--gray-800);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .performance-card {
+            background: var(--gray-100);
+            padding: 1.5rem;
+            border-radius: var(--border-radius-lg);
+        }
+
+        .target-status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .target-achieved {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+        }
+
+        .target-below {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            color: #991b1b;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .todays-collection-container {
+                padding: 1rem;
+            }
+            
+            .header-section {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .action-buttons {
+                width: 100%;
+                flex-direction: column;
+            }
+            
+            .export-btn, .refresh-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .breakdown-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .transactions-table {
+                display: block;
+                overflow-x: auto;
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--gray-200);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-dark);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ================= TOP BAR ================= -->
+    <header class="topbar">
+        <div class="user-info">
+            <h2>
+                <i class="fa-solid fa-hospital"></i>
+                All Saint Medical Center
+            </h2>
+            <p>
+                <i class="fa-regular fa-circle-user"></i>
+                Welcome, {{ session.get('billing_username', 'Billing Officer') }}
+                <span style="background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 20px; margin-left: 0.5rem; font-size: 0.8rem;">
+                    <i class="fa-solid fa-cash-register"></i> Billing
+                </span>
+            </p>
+        </div>
+
+        <a href="{{ url_for('billing_logout') }}" class="logout-btn">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </a>
+    </header>
+
+    <div class="todays-collection-container">
+        
+        <!-- Back Button -->
+        <a href="{{ url_for('billing_dashboard') }}" class="back-btn">
+            <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+        </a>
+        
+        <!-- Header -->
+        <div class="header-section">
+            <div>
+                <h1>
+                    <i class="fa-solid fa-money-bill-wave"></i>
+                    Today's Collection
+                </h1>
+                <div class="date-display">
+                    <i class="fa-solid fa-calendar-day"></i>
+                    {{ today_date }}
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <a href="{{ url_for('admin_export_todays_collection') }}" class="export-btn">
+                    <i class="fa-solid fa-file-excel"></i> Export Report
+                </a>
+                <a href="{{ url_for('todays_collection') }}" class="refresh-btn">
+                    <i class="fa-solid fa-rotate-right"></i> Refresh
+                </a>
+            </div>
+        </div>
+        
+        <!-- Stats Row -->
+        <div class="stats-row">
+            <div class="stat-box" data-aos="fade-up" data-aos-delay="100">
+                <div class="stat-value">{{ total_transactions }}</div>
+                <div class="stat-label">Total Transactions</div>
+            </div>
+            <div class="stat-box" data-aos="fade-up" data-aos-delay="200">
+                <div class="stat-value">{{ average_transaction | currency }}</div>
+                <div class="stat-label">Average Transaction</div>
+            </div>
+            <div class="stat-box" data-aos="fade-up" data-aos-delay="300">
+                <div class="stat-value">{{ highest_transaction | currency }}</div>
+                <div class="stat-label">Highest Transaction</div>
+            </div>
+            <div class="stat-box" data-aos="fade-up" data-aos-delay="400">
+                <div class="stat-value">{{ lowest_transaction | currency if lowest_transaction > 0 else '₦0.00' }}</div>
+                <div class="stat-label">Lowest Transaction</div>
+            </div>
+        </div>
+        
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card grand-total" data-aos="fade-up" data-aos-delay="100">
+                <div class="card-icon">
+                    <i class="fa-solid fa-sack-dollar"></i>
+                </div>
+                <div class="card-value">{{ grand_total | currency }}</div>
+                <div class="card-label">Total Collection Today</div>
+            </div>
+            
+            <div class="summary-card cash" data-aos="fade-up" data-aos-delay="200">
+                <div class="card-icon">
+                    <i class="fa-solid fa-money-bill"></i>
+                </div>
+                <div class="card-value">{{ cash_total | currency }}</div>
+                <div class="card-label">Cash Payments</div>
+                <div class="percentage-text">{{ "%.1f"|format((cash_total/grand_total)*100 if grand_total > 0 else 0) }}% of total</div>
+                <div class="percentage-bar">
+                    <div class="percentage-fill cash" style="width: {{ (cash_total/grand_total)*100 if grand_total > 0 else 0 }}%"></div>
+                </div>
+            </div>
+            
+            <div class="summary-card card" data-aos="fade-up" data-aos-delay="300">
+                <div class="card-icon">
+                    <i class="fa-solid fa-credit-card"></i>
+                </div>
+                <div class="card-value">{{ card_total | currency }}</div>
+                <div class="card-label">Card Payments</div>
+                <div class="percentage-text">{{ "%.1f"|format((card_total/grand_total)*100 if grand_total > 0 else 0) }}% of total</div>
+                <div class="percentage-bar">
+                    <div class="percentage-fill card" style="width: {{ (card_total/grand_total)*100 if grand_total > 0 else 0 }}%"></div>
+                </div>
+            </div>
+            
+            <div class="summary-card transfer" data-aos="fade-up" data-aos-delay="400">
+                <div class="card-icon">
+                    <i class="fa-solid fa-building-columns"></i>
+                </div>
+                <div class="card-value">{{ transfer_total | currency }}</div>
+                <div class="card-label">Bank Transfer</div>
+                <div class="percentage-text">{{ "%.1f"|format((transfer_total/grand_total)*100 if grand_total > 0 else 0) }}% of total</div>
+                <div class="percentage-bar">
+                    <div class="percentage-fill transfer" style="width: {{ (transfer_total/grand_total)*100 if grand_total > 0 else 0 }}%"></div>
+                </div>
+            </div>
+            
+            <div class="summary-card pos" data-aos="fade-up" data-aos-delay="500">
+                <div class="card-icon">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+                <div class="card-value">{{ pos_total | currency }}</div>
+                <div class="card-label">POS Payments</div>
+                <div class="percentage-text">{{ "%.1f"|format((pos_total/grand_total)*100 if grand_total > 0 else 0) }}% of total</div>
+                <div class="percentage-bar">
+                    <div class="percentage-fill pos" style="width: {{ (pos_total/grand_total)*100 if grand_total > 0 else 0 }}%"></div>
+                </div>
+            </div>
+            
+            <div class="summary-card insurance" data-aos="fade-up" data-aos-delay="600">
+                <div class="card-icon">
+                    <i class="fa-solid fa-shield-alt"></i>
+                </div>
+                <div class="card-value">{{ insurance_total | currency }}</div>
+                <div class="card-label">Insurance</div>
+                <div class="percentage-text">{{ "%.1f"|format((insurance_total/grand_total)*100 if grand_total > 0 else 0) }}% of total</div>
+                <div class="percentage-bar">
+                    <div class="percentage-fill insurance" style="width: {{ (insurance_total/grand_total)*100 if grand_total > 0 else 0 }}%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Payment Method Breakdown -->
+        <div class="breakdown-section">
+            <h2 class="section-title">
+                <i class="fa-solid fa-chart-pie"></i> Payment Method Breakdown
+            </h2>
+            
+            <div class="breakdown-grid">
+                {% for method in payment_methods %}
+                <div class="breakdown-item" data-aos="fade-up" data-aos-delay="{{ loop.index * 50 }}">
+                    <div class="method-info">
+                        <div class="method-icon {{ method.name.lower().replace(' ', '-') }}">
+                            {% if method.name == 'Cash' %}
+                                <i class="fa-solid fa-money-bill"></i>
+                            {% elif method.name == 'Card' %}
+                                <i class="fa-solid fa-credit-card"></i>
+                            {% elif method.name == 'Transfer' %}
+                                <i class="fa-solid fa-building-columns"></i>
+                            {% elif method.name == 'POS' %}
+                                <i class="fa-solid fa-receipt"></i>
+                            {% elif method.name == 'Insurance' %}
+                                <i class="fa-solid fa-shield-alt"></i>
+                            {% else %}
+                                <i class="fa-solid fa-money-bill-wave"></i>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <div class="method-name">{{ method.name }}</div>
+                            <div class="method-count">{{ method.count }} transaction{% if method.count != 1 %}s{% endif %}</div>
+                        </div>
+                    </div>
+                    <div class="method-amount">{{ method.amount | currency }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Percentage Distribution -->
+            <div style="margin-top: 2rem;">
+                <h3 style="color: var(--gray-800); margin-bottom: 1rem; font-size: 1.1rem;">
+                    <i class="fa-solid fa-chart-line" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                    Distribution by Payment Method
+                </h3>
+                {% for method in payment_methods %}
+                <div style="margin-bottom: 1rem;" data-aos="fade-right" data-aos-delay="{{ loop.index * 50 }}">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                        <span style="font-weight: 500;">{{ method.name }}</span>
+                        <span>{{ "%.1f"|format(method.percentage) }}% ({{ method.amount | currency }})</span>
+                    </div>
+                    <div class="percentage-bar">
+                        <div class="percentage-fill {{ method.name.lower().replace(' ', '-') }}" 
+                             style="width: {{ method.percentage }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Recent Transactions -->
+        <div class="breakdown-section">
+            <h2 class="section-title">
+                <i class="fa-solid fa-list"></i> Today's Transactions
+            </h2>
+            
+            <div class="transactions-table-container">
+                {% if recent_transactions %}
+                    <table class="transactions-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Receipt No</th>
+                                <th>Patient Name</th>
+                                <th>Service Type</th>
+                                <th>Amount</th>
+                                <th>Payment Method</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in recent_transactions %}
+                                <tr data-aos="fade-up" data-aos-delay="{{ loop.index * 50 }}">
+                                    <td>
+                                        <i class="fa-regular fa-clock" style="color: var(--primary); margin-right: 0.25rem;"></i>
+                                        {{ transaction.created_at.strftime('%H:%M') if transaction.created_at else 'N/A' }}
+                                    </td>
+                                    <td><span style="font-weight: 600;">#{{ transaction.id }}</span></td>
+                                    <td>
+                                        <i class="fa-regular fa-user" style="color: var(--primary); margin-right: 0.25rem;"></i>
+                                        {{ transaction.patient_name }}
+                                    </td>
+                                    <td>
+                                        <span class="status-badge" style="background: var(--info); color: white;">
+                                            {{ transaction.service_type }}
+                                        </span>
+                                    </td>
+                                    <td style="font-weight: 700; color: var(--success);">
+                                        {{ transaction.amount_paid | currency }}
+                                    </td>
+                                    <td>
+                                        <span style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <span class="method-icon {{ transaction.payment_method.lower().replace(' ', '-') }}" 
+                                                  style="width: 30px; height: 30px; font-size: 0.9rem;">
+                                                {% if transaction.payment_method == 'Cash' %}
+                                                    <i class="fa-solid fa-money-bill"></i>
+                                                {% elif transaction.payment_method == 'Card' %}
+                                                    <i class="fa-solid fa-credit-card"></i>
+                                                {% elif transaction.payment_method == 'Transfer' %}
+                                                    <i class="fa-solid fa-building-columns"></i>
+                                                {% elif transaction.payment_method == 'POS' %}
+                                                    <i class="fa-solid fa-receipt"></i>
+                                                {% elif transaction.payment_method == 'Insurance' %}
+                                                    <i class="fa-solid fa-shield-alt"></i>
+                                                {% endif %}
+                                            </span>
+                                            {{ transaction.payment_method }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if transaction.status == 'Paid' %}
+                                            <span class="status-badge status-paid">
+                                                <i class="fa-solid fa-check-circle"></i> Paid
+                                            </span>
+                                        {% elif transaction.status == 'Partial' %}
+                                            <span class="status-badge status-partial">
+                                                <i class="fa-solid fa-clock"></i> Partial
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('view_payment_receipt', payment_id=transaction.id) }}" class="action-btn">
+                                            <i class="fa-solid fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fa-solid fa-money-bill-wave"></i>
+                        <h3>No Transactions Today</h3>
+                        <p>No payments have been recorded for today.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Daily Summary -->
+        <div class="breakdown-section">
+            <h2 class="section-title">
+                <i class="fa-solid fa-chart-bar"></i> Daily Summary
+            </h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                <!-- Collection Timeline -->
+                <div class="timeline-card">
+                    <h3>
+                        <i class="fa-solid fa-clock" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                        Collection Timeline
+                    </h3>
+                    <div style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                            <span>Morning (6AM - 12PM)</span>
+                            <span style="font-weight: 600;">{{ morning_total | currency }}</span>
+                        </div>
+                        <div class="percentage-bar">
+                            <div class="percentage-fill" 
+                                 style="background: var(--primary); width: {{ (morning_total/grand_total)*100 if grand_total > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                            <span>Afternoon (12PM - 4PM)</span>
+                            <span style="font-weight: 600;">{{ afternoon_total | currency }}</span>
+                        </div>
+                        <div class="percentage-bar">
+                            <div class="percentage-fill" 
+                                 style="background: var(--secondary); width: {{ (afternoon_total/grand_total)*100 if grand_total > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                            <span>Evening (4PM - 10PM)</span>
+                            <span style="font-weight: 600;">{{ evening_total | currency }}</span>
+                        </div>
+                        <div class="percentage-bar">
+                            <div class="percentage-fill" 
+                                 style="background: var(--warning); width: {{ (evening_total/grand_total)*100 if grand_total > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Performance Card -->
+                <div class="performance-card">
+                    <h3>
+                        <i class="fa-solid fa-bullseye" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                        Collection Performance
+                    </h3>
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span>Today's Target:</span>
+                            <span style="font-weight: 600;">{{ daily_target | currency }}</span>
+                        </div>
+                        <div class="percentage-bar">
+                            <div class="percentage-fill" 
+                                 style="background: var(--success); width: {{ (grand_total/daily_target)*100 if daily_target > 0 else 0 }}%"></div>
+                        </div>
+                        <div style="text-align: center; margin-top: 0.5rem; font-weight: 600;">
+                            {{ "%.1f"|format((grand_total/daily_target)*100 if daily_target > 0 else 0) }}% of target
+                        </div>
+                    </div>
+                    <div style="background: var(--gray-100); padding: 1rem; border-radius: var(--border-radius);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span>Balance to Target:</span>
+                            <span style="font-weight: 600; color: {% if daily_target > grand_total %}var(--warning){% else %}var(--success){% endif %};">
+                                {{ (daily_target - grand_total) | currency if daily_target > grand_total else '₦0.00' }}
+                            </span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Target Status:</span>
+                            <span class="target-status {% if grand_total >= daily_target %}target-achieved{% else %}target-below{% endif %}">
+                                <i class="fa-solid {% if grand_total >= daily_target %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                                {% if grand_total >= daily_target %} Target Achieved {% else %} Below Target {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    
+    <script>
+        // Initialize AOS
+        AOS.init({
+            duration: 800,
+            once: true,
+            offset: 50
+        });
+
+        // Auto-refresh with confirmation
+        let refreshTimer = setTimeout(function() {
+            if (confirm('Page will refresh to show latest collection data. Continue?')) {
+                window.location.reload();
+            }
+        }, 300000); // 5 minutes
+
+        // Animate percentage bars on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const bars = document.querySelectorAll('.percentage-fill');
+            bars.forEach(bar => {
+                const width = bar.style.width;
+                bar.style.width = '0%';
+                setTimeout(() => {
+                    bar.style.width = width;
+                }, 100);
+            });
+        });
+
+        // Format currency helper
+        function formatCurrency(amount) {
+            return '₦' + parseFloat(amount).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        }
+
+        // Refresh button animation
+        document.querySelector('.refresh-btn')?.addEventListener('click', function(e) {
+            e.preventDefault();
+            this.classList.add('loading');
+            setTimeout(() => {
+                window.location.href = this.href;
+            }, 500);
+        });
+
+        // Export confirmation
+        document.querySelector('.export-btn')?.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (confirm('Download today\'s collection report?')) {
+                window.location.href = this.href;
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+R to refresh
+            if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                e.preventDefault();
+                window.location.reload();
+            }
+            // Ctrl+E to export
+            if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+                e.preventDefault();
+                document.querySelector('.export-btn')?.click();
+            }
+        });
+    </script>
+</body>
+</html>
