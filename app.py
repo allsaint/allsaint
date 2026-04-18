@@ -490,7 +490,116 @@ def create_default_users():
     conn.commit()
     cursor.close()
     conn.close()
+    
+    
+def create_nkiru_user():
+    """Create Nkiru as a default cashier/billing user."""
+    conn = get_db_connection()
+    if not conn:
+        return
+    
+    cursor = conn.cursor()
+    
+    try:
+        # Check if user already exists in cashier_users
+        cursor.execute("SELECT id FROM cashier_users WHERE username = ?", ("Cashier1",))
+        if not cursor.fetchone():
+            hashed_pw = generate_password_hash("Nkiru1@allsaints")
+            cursor.execute("""
+                INSERT INTO cashier_users (username, password, full_name, is_active)
+                VALUES (?, ?, ?, ?)
+            """, ("Cashier1", hashed_pw, "Nkiru", 1))
+            app.logger.info("Cashier user 'Nkiru' created successfully")
+        else:
+            app.logger.info("Cashier user 'Nkiru' already exists")
+        
+        # Check if user already exists in billing_users
+        cursor.execute("SELECT id FROM billing_users WHERE username = ?", ("Cashier1",))
+        if not cursor.fetchone():
+            hashed_pw = generate_password_hash("Nkiru1@allsaints")
+            cursor.execute("""
+                INSERT INTO billing_users (username, password, full_name, is_active)
+                VALUES (?, ?, ?, ?)
+            """, ("Cashier1", hashed_pw, "Nkiru", 1))
+            app.logger.info("Billing user 'Nkiru' created successfully")
+        else:
+            app.logger.info("Billing user 'Nkiru' already exists")
+            
+    except Exception as e:
+        app.logger.error(f"Error creating Nkiru user: {e}")
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+def create_nkiru_user():
+    """Create Nkiru as a default cashier/billing user."""
+    conn = get_db_connection()
+    if not conn:
+        return
+    
+    cursor = conn.cursor()
+    
+    try:
+        # Check if user already exists in cashier_users
+        cursor.execute("SELECT id FROM cashier_users WHERE username = ?", ("Cashier1",))
+        if not cursor.fetchone():
+            hashed_pw = generate_password_hash("Nkiru1@allsaints")
+            cursor.execute("""
+                INSERT INTO cashier_users (username, password, full_name, is_active)
+                VALUES (?, ?, ?, ?)
+            """, ("Cashier1", hashed_pw, "Nkiru", 1))
+            app.logger.info("Cashier user 'Nkiru' created successfully")
+        else:
+            app.logger.info("Cashier user 'Nkiru' already exists")
+        
+        # Check if user already exists in billing_users
+        cursor.execute("SELECT id FROM billing_users WHERE username = ?", ("Cashier1",))
+        if not cursor.fetchone():
+            hashed_pw = generate_password_hash("Nkiru1@allsaints")
+            cursor.execute("""
+                INSERT INTO billing_users (username, password, full_name, is_active)
+                VALUES (?, ?, ?, ?)
+            """, ("Cashier1", hashed_pw, "Nkiru", 1))
+            app.logger.info("Billing user 'Nkiru' created successfully")
+        else:
+            app.logger.info("Billing user 'Nkiru' already exists")
+            
+    except Exception as e:
+        app.logger.error(f"Error creating Nkiru user: {e}")
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
 
+
+def create_christy_user():
+    """Create Christy as a default pharmacy user."""
+    conn = get_db_connection()
+    if not conn:
+        return
+    
+    cursor = conn.cursor()
+    
+    try:
+        # Check if user already exists in pharmacists
+        cursor.execute("SELECT id FROM pharmacists WHERE username = ?", ("Pharmacy1",))
+        if not cursor.fetchone():
+            hashed_pw = generate_password_hash("Christy1@allsaints")
+            cursor.execute("""
+                INSERT INTO pharmacists (username, password, full_name, is_active)
+                VALUES (?, ?, ?, ?)
+            """, ("Pharmacy1", hashed_pw, "Christy", 1))
+            app.logger.info("Pharmacist user 'Christy' created successfully")
+        else:
+            app.logger.info("Pharmacist user 'Christy' already exists")
+            
+    except Exception as e:
+        app.logger.error(f"Error creating Christy user: {e}")
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
 def create_default_admin():
     """Create default admin user."""
     conn = get_db_connection()
@@ -4165,6 +4274,8 @@ if __name__ == "__main__":
     create_default_users()
     create_hr_tables()
     create_default_admin()
+    create_nkiru_user()    # Create Nkiru (Cashier1)
+    create_christy_user()
     add_missing_columns()
     sync_existing_users()
     
