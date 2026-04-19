@@ -11,6 +11,125 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/drug_sales.css') }}">
+    
+    <style>
+        .quantity-input {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 120px;
+        }
+        
+        .quantity-input button {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .quantity-input button:hover {
+            background: #4361ee;
+            color: white;
+            border-color: #4361ee;
+        }
+        
+        .quantity-input button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .quantity-input button:disabled:hover {
+            background: white;
+            color: inherit;
+        }
+        
+        .quantity-input .quantity-value {
+            width: 60px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 4px 0;
+            background: #f8f9fa;
+        }
+        
+        .drug-search-container {
+            position: relative;
+        }
+        
+        #drug-suggestions {
+            max-height: 300px;
+            overflow-y: auto;
+            cursor: pointer;
+        }
+        
+        #drug-suggestions .list-group-item:hover {
+            background: #4361ee;
+            color: white;
+        }
+        
+        .cart-item {
+            transition: all 0.3s ease;
+        }
+        
+        .cart-item:hover {
+            background: #f8f9ff;
+        }
+        
+        .btn-remove {
+            color: #ef476f;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-remove:hover {
+            transform: scale(1.1);
+        }
+        
+        .topbar {
+            background: linear-gradient(135deg, #4361ee 0%, #7209b7 100%);
+            color: white;
+            padding: 1rem 0;
+        }
+        
+        .topbar h2 {
+            margin-bottom: 0.25rem;
+            font-size: 1.5rem;
+        }
+        
+        .topbar p {
+            margin-bottom: 0;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+        }
+        
+        .logout-btn:hover {
+            background: white;
+            color: #4361ee;
+        }
+        
+        .page-title h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .table thead th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
 
@@ -20,38 +139,39 @@
             <div class="user-info">
                 <h2>Pharmacy Module</h2>
                 <p>Logged in as <strong>{{ pharmacist_name }}</strong></p>
-                <p id="datetime" class="mb-0" style="font-size:0.9rem; color: var(--gray);"></p>
+                <p id="datetime" class="mb-0" style="font-size:0.9rem;"></p>
             </div>
-            <a href="{{ url_for('pharmacy_dashboard') }}" class="btn btn-secondary me-2">
-                <i class="bi bi-arrow-left-circle me-1"></i>Dashboard
-            </a>
-            <a href="{{ url_for('pharmacy_logout') }}" class="logout-btn btn btn-danger">
-                <i class="bi bi-box-arrow-right me-1"></i>Logout
-            </a>
+            <div>
+                <a href="{{ url_for('pharmacy_dashboard') }}" class="btn btn-light me-2">
+                    <i class="bi bi-arrow-left-circle me-1"></i>Dashboard
+                </a>
+                <a href="{{ url_for('pharmacy_logout') }}" class="logout-btn btn">
+                    <i class="bi bi-box-arrow-right me-1"></i>Logout
+                </a>
+            </div>
         </div>
     </div>
 
     <!-- Page Title -->
     <div class="page-title text-center my-4">
         <h1>Drug Sales</h1>
-        <span class="badge bg-success"></span>
+        <span class="badge bg-success">Point of Sale</span>
     </div>
 
-    <div class="container">
+    <div class="container mb-5">
 
         <!-- Drug Search Panel -->
-            <div class="row mb-4">
-                <div class="col-md-8 position-relative">
-                    <input type="text" class="form-control" id="drug-search" placeholder="Search drug by name...">
-                    <ul id="drug-suggestions" class="list-group position-absolute w-100 d-none" style="z-index: 1000;"></ul>
-                </div>
-                <div class="col-md-4">
-                    <button class="btn btn-primary w-100" id="add-drug-btn">
-                        <i class="bi bi-plus-circle me-1"></i>drug-search
-                    </button>
-                </div>
+        <div class="row mb-4">
+            <div class="col-md-8 drug-search-container">
+                <input type="text" class="form-control form-control-lg" id="drug-search" placeholder="🔍 Search drug by name...">
+                <ul id="drug-suggestions" class="list-group position-absolute w-100 d-none" style="z-index: 1000;"></ul>
             </div>
-
+            <div class="col-md-4">
+                <button class="btn btn-primary w-100 h-100" id="add-drug-btn" disabled>
+                    <i class="bi bi-plus-circle me-1"></i>Add Selected Drug
+                </button>
+            </div>
+        </div>
 
         <!-- Selected Drugs Table -->
         <div class="table-responsive">
@@ -60,46 +180,68 @@
                     <tr>
                         <th>Drug Name</th>
                         <th>Strength</th>
-                        <th>Unit Price</th>
+                        <th>Unit Price (₦)</th>
                         <th>Quantity</th>
-                        <th>Subtotal</th>
+                        <th>Subtotal (₦)</th>
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="cart-items">
                     <!-- Dynamic Rows Will Appear Here -->
+                    <tr id="empty-cart-message">
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="bi bi-cart-x" style="font-size: 2rem;"></i><br>
+                            No items added yet. Search and add drugs to continue.
+                        </td>
+                    </tr>
                 </tbody>
+                <tfoot id="cart-footer" style="display: none;">
+                    <tr class="table-active">
+                        <td colspan="5" class="text-end fw-bold">Total Items:</td>
+                        <td class="fw-bold" id="total-items">0</td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
 
         <!-- Billing Summary -->
         <div class="row mt-4">
             <div class="col-md-6 offset-md-6">
-                <div class="card p-3">
-                    <h5>Billing Summary</h5>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Subtotal:</span>
-                        <span id="subtotal">0.00</span>
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-receipt"></i> Billing Summary</h5>
                     </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Discount:</span>
-                        <input type="number" id="discount" value="0" min="0" class="form-control form-control-sm w-50">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <span id="subtotal" class="fw-bold">₦0.00</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Discount (%):</span>
+                            <div class="w-50">
+                                <input type="number" id="discount" value="0" min="0" max="100" step="1" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>VAT/NHIS (%):</span>
+                            <div class="w-50">
+                                <input type="number" id="tax" value="0" min="0" max="100" step="1" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="fs-5 fw-bold">Grand Total:</span>
+                            <span id="grand-total" class="fs-4 fw-bold text-success">₦0.00</span>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success btn-lg" id="confirm-payment">
+                                <i class="bi bi-cash-stack me-2"></i>Confirm Payment
+                            </button>
+                            <button class="btn btn-outline-danger" id="cancel-sale">
+                                <i class="bi bi-x-circle me-2"></i>Cancel Sale
+                            </button>
+                        </div>
                     </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>VAT/NHIS:</span>
-                        <input type="number" id="tax" value="0" min="0" class="form-control form-control-sm w-50">
-                    </div>
-                    <hr>
-                    <div class="d-flex justify-content-between fw-bold fs-5">
-                        <span>Grand Total:</span>
-                        <span id="grand-total">0.00</span>
-                    </div>
-                    <button class="btn btn-success w-100 mt-3" id="confirm-payment">
-                        <i class="bi bi-cash-stack me-1"></i>Confirm Payment
-                    </button>
-                    <button class="btn btn-outline-secondary w-100 mt-2" id="cancel-sale">
-                        <i class="bi bi-x-circle me-1"></i>Cancel Sale
-                    </button>
                 </div>
             </div>
         </div>
@@ -109,22 +251,302 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Custom JS -->
-    <script src="{{ url_for('static', filename='js/drug_sales.js') }}"></script>
-
-
-    <!-- Date & Time -->
     <script>
+        // State management
+        let cart = [];
+        let selectedDrug = null;
+        let drugList = [];
+
+        // Format currency
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
+        }
+
+        // Update date and time
         function updateDateTime() {
             const now = new Date();
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const timeString = now.toLocaleTimeString();
-            const dateString = now.toLocaleDateString(undefined, options);
+            const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateString = now.toLocaleDateString('en-US', options);
             document.getElementById('datetime').textContent = `${dateString} • ${timeString}`;
         }
         setInterval(updateDateTime, 1000);
         updateDateTime();
-    </script>
 
+        // Load drugs from API
+        async function loadDrugs() {
+            try {
+                const response = await fetch('/api/drugs');
+                drugList = await response.json();
+            } catch (error) {
+                console.error('Error loading drugs:', error);
+            }
+        }
+
+        // Search functionality
+        const searchInput = document.getElementById('drug-search');
+        const suggestionsList = document.getElementById('drug-suggestions');
+        const addDrugBtn = document.getElementById('add-drug-btn');
+
+        searchInput.addEventListener('input', function() {
+            const query = this.value.trim().toLowerCase();
+            
+            if (query.length === 0) {
+                suggestionsList.classList.add('d-none');
+                selectedDrug = null;
+                addDrugBtn.disabled = true;
+                return;
+            }
+            
+            const filtered = drugList.filter(drug => 
+                drug.name.toLowerCase().includes(query)
+            ).slice(0, 10);
+            
+            if (filtered.length > 0) {
+                suggestionsList.innerHTML = filtered.map(drug => 
+                    `<li class="list-group-item" data-id="${drug.id}" data-name="${drug.name}" data-strength="${drug.strength}" data-price="${drug.unit_price}" data-stock="${drug.stock_quantity}">
+                        <strong>${drug.name}</strong> ${drug.strength} - ${formatCurrency(drug.unit_price)} 
+                        <span class="text-muted">(Stock: ${drug.stock_quantity})</span>
+                    </li>`
+                ).join('');
+                suggestionsList.classList.remove('d-none');
+                
+                // Add click handlers
+                suggestionsList.querySelectorAll('.list-group-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        selectedDrug = {
+                            id: parseInt(this.dataset.id),
+                            name: this.dataset.name,
+                            strength: this.dataset.strength,
+                            unit_price: parseFloat(this.dataset.price),
+                            stock: parseInt(this.dataset.stock)
+                        };
+                        searchInput.value = `${selectedDrug.name} ${selectedDrug.strength}`;
+                        suggestionsList.classList.add('d-none');
+                        addDrugBtn.disabled = false;
+                    });
+                });
+            } else {
+                suggestionsList.innerHTML = '<li class="list-group-item text-muted">No drugs found</li>';
+                suggestionsList.classList.remove('d-none');
+                selectedDrug = null;
+                addDrugBtn.disabled = true;
+            }
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
+                suggestionsList.classList.add('d-none');
+            }
+        });
+
+        // Add drug to cart
+        addDrugBtn.addEventListener('click', function() {
+            if (!selectedDrug) return;
+            
+            const existingItem = cart.find(item => item.id === selectedDrug.id);
+            
+            if (existingItem) {
+                // Check stock availability
+                if (existingItem.quantity + 1 > existingItem.stock) {
+                    alert(`Only ${existingItem.stock} units available in stock!`);
+                    return;
+                }
+                existingItem.quantity++;
+            } else {
+                cart.push({
+                    id: selectedDrug.id,
+                    name: selectedDrug.name,
+                    strength: selectedDrug.strength,
+                    unit_price: selectedDrug.unit_price,
+                    quantity: 1,
+                    stock: selectedDrug.stock
+                });
+            }
+            
+            renderCart();
+            searchInput.value = '';
+            selectedDrug = null;
+            addDrugBtn.disabled = true;
+            suggestionsList.classList.add('d-none');
+        });
+
+        // Update quantity
+        function updateQuantity(drugId, newQuantity) {
+            const item = cart.find(item => item.id === drugId);
+            if (item) {
+                if (newQuantity <= 0) {
+                    // Remove item if quantity becomes 0
+                    cart = cart.filter(item => item.id !== drugId);
+                } else if (newQuantity > item.stock) {
+                    alert(`Only ${item.stock} units available in stock!`);
+                    return;
+                } else {
+                    item.quantity = newQuantity;
+                }
+                renderCart();
+            }
+        }
+
+        // Remove item from cart
+        function removeItem(drugId) {
+            cart = cart.filter(item => item.id !== drugId);
+            renderCart();
+        }
+
+        // Calculate totals
+        function calculateTotals() {
+            const subtotal = cart.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+            const discountPercent = parseFloat(document.getElementById('discount').value) || 0;
+            const taxPercent = parseFloat(document.getElementById('tax').value) || 0;
+            
+            const discountAmount = (subtotal * discountPercent) / 100;
+            const taxAmount = ((subtotal - discountAmount) * taxPercent) / 100;
+            const grandTotal = subtotal - discountAmount + taxAmount;
+            
+            return { subtotal, discountAmount, taxAmount, grandTotal };
+        }
+
+        // Update summary display
+        function updateSummary() {
+            const { subtotal, discountAmount, taxAmount, grandTotal } = calculateTotals();
+            document.getElementById('subtotal').textContent = formatCurrency(subtotal);
+            document.getElementById('grand-total').textContent = formatCurrency(grandTotal);
+            
+            // Update total items count
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            document.getElementById('total-items').textContent = totalItems;
+        }
+
+        // Render cart table
+        function renderCart() {
+            const tbody = document.getElementById('cart-items');
+            const footer = document.getElementById('cart-footer');
+            
+            if (cart.length === 0) {
+                tbody.innerHTML = `
+                    <tr id="empty-cart-message">
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="bi bi-cart-x" style="font-size: 2rem;"></i><br>
+                            No items added yet. Search and add drugs to continue.
+                        </td>
+                    </tr>
+                `;
+                footer.style.display = 'none';
+                updateSummary();
+                return;
+            }
+            
+            footer.style.display = 'table-row-group';
+            
+            tbody.innerHTML = cart.map(item => `
+                <tr class="cart-item">
+                    <td class="fw-bold">${item.name}</td>
+                    <td>${item.strength}</td>
+                    <td>${formatCurrency(item.unit_price)}</td>
+                    <td>
+                        <div class="quantity-input">
+                            <button onclick="updateQuantity(${item.id}, ${item.quantity - 1})" ${item.quantity <= 1 ? 'disabled' : ''}>
+                                <i class="bi bi-dash"></i>
+                            </button>
+                            <span class="quantity-value">${item.quantity}</span>
+                            <button onclick="updateQuantity(${item.id}, ${item.quantity + 1})" ${item.quantity >= item.stock ? 'disabled' : ''}>
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td class="text-success fw-bold">${formatCurrency(item.unit_price * item.quantity)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-link text-danger" onclick="removeItem(${item.id})">
+                            <i class="bi bi-trash3 fs-5"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            updateSummary();
+        }
+
+        // Recalculate when discount or tax changes
+        document.getElementById('discount').addEventListener('input', () => updateSummary());
+        document.getElementById('tax').addEventListener('input', () => updateSummary());
+
+        // Confirm payment
+        document.getElementById('confirm-payment').addEventListener('click', async function() {
+            if (cart.length === 0) {
+                alert('Please add items to the cart first!');
+                return;
+            }
+            
+            const { subtotal, discountAmount, taxAmount, grandTotal } = calculateTotals();
+            
+            const saleData = {
+                items: cart.map(item => ({
+                    drug_id: item.id,
+                    drug_name: item.name,
+                    strength: item.strength,
+                    quantity: item.quantity,
+                    unit_price: item.unit_price
+                })),
+                subtotal: subtotal,
+                discount: discountAmount,
+                tax: taxAmount,
+                grand_total: grandTotal
+            };
+            
+            try {
+                const response = await fetch('/pharmacy/confirm-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(saleData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Payment confirmed successfully!');
+                    // Reset cart
+                    cart = [];
+                    renderCart();
+                    document.getElementById('discount').value = '0';
+                    document.getElementById('tax').value = '0';
+                    updateSummary();
+                    
+                    // Redirect to receipt page if receipt_id is returned
+                    if (result.receipt_id) {
+                        window.location.href = `/pharmacy/receipt/${result.receipt_id}`;
+                    }
+                } else {
+                    alert('Error processing payment: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error processing payment. Please try again.');
+            }
+        });
+
+        // Cancel sale
+        document.getElementById('cancel-sale').addEventListener('click', function() {
+            if (cart.length > 0 && confirm('Are you sure you want to cancel this sale? All items will be removed.')) {
+                cart = [];
+                renderCart();
+                document.getElementById('discount').value = '0';
+                document.getElementById('tax').value = '0';
+                updateSummary();
+            } else if (cart.length === 0) {
+                alert('Cart is already empty!');
+            }
+        });
+
+        // Initialize
+        loadDrugs();
+        
+        // Make functions global for onclick handlers
+        window.updateQuantity = updateQuantity;
+        window.removeItem = removeItem;
+    </script>
 </body>
 </html>

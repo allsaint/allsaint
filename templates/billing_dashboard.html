@@ -14,6 +14,9 @@
     <!-- AOS Animation Library -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 
+    <!-- Bootstrap 5 CSS (for modal) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
         /* ===== CONSISTENT DESIGN SYSTEM ===== */
         :root {
@@ -40,6 +43,7 @@
             
             --gradient-primary: linear-gradient(135deg, #4361ee 0%, #7209b7 100%);
             --gradient-success: linear-gradient(135deg, #06d6a0 0%, #00b4d8 100%);
+            --gradient-warning: linear-gradient(135deg, #ff9e00 0%, #ef476f 100%);
             
             --shadow-sm: 0 2px 4px rgba(0,0,0,0.02);
             --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
@@ -101,6 +105,16 @@
         @keyframes float {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-5px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         /* ===== TOP BAR ===== */
@@ -198,17 +212,12 @@
             animation: pulse 2s infinite;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.2); }
-        }
-
         /* ===== DASHBOARD CARDS ===== */
         .dashboard-cards {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
-            padding: 2rem;
+            padding: 0 2rem 2rem;
             max-width: 1400px;
             margin: 0 auto;
         }
@@ -296,10 +305,8 @@
         .card-link:nth-child(2) { animation-delay: 0.2s; }
         .card-link:nth-child(3) { animation-delay: 0.3s; }
         .card-link:nth-child(4) { animation-delay: 0.4s; }
-        .card-link:nth-child(5) { animation-delay: 0.5s; }
-        .card-link:nth-child(6) { animation-delay: 0.6s; }
 
-        /* ===== QUICK STATS SECTION (Optional enhancement) ===== */
+        /* ===== QUICK STATS SECTION ===== */
         .quick-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -351,6 +358,128 @@
             color: var(--gray-900);
         }
 
+        /* ===== REMITTANCE CARD (BOTTOM) ===== */
+        .remittance-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: var(--border-radius-xl);
+            padding: 2rem;
+            margin: 0 2rem 2rem;
+            color: white;
+            box-shadow: var(--shadow-xl);
+            animation: fadeIn 0.8s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .remittance-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: float 20s infinite linear;
+        }
+
+        .remittance-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .remittance-stat {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius-lg);
+            padding: 1.25rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .remittance-stat:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-5px);
+        }
+
+        .remittance-stat i {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .remittance-stat label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .remittance-stat .amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .remittance-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .btn-remit {
+            background: white;
+            color: var(--primary);
+            padding: 0.75rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            border: none;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-remit:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            background: var(--gray-100);
+        }
+
+        .btn-history {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-history:hover {
+            background: white;
+            color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        /* Alert customization */
+        .alert-remittance {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: var(--border-radius-lg);
+            margin-bottom: 1rem;
+        }
+
         /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
             .topbar {
@@ -372,6 +501,16 @@
                 font-size: 1.6rem;
             }
             
+            .remittance-card {
+                margin: 1rem;
+                padding: 1.5rem;
+            }
+            
+            .remittance-stats {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
             .dashboard-cards {
                 padding: 1rem;
                 gap: 1rem;
@@ -388,6 +527,10 @@
             .card h3 {
                 font-size: 1.2rem;
             }
+            
+            .quick-stats {
+                padding: 0 1rem 1rem;
+            }
         }
 
         @media (max-width: 480px) {
@@ -395,8 +538,12 @@
                 display: none;
             }
             
-            .quick-stats {
-                grid-template-columns: 1fr;
+            .remittance-actions {
+                flex-direction: column;
+            }
+            
+            .btn-remit, .btn-history {
+                justify-content: center;
             }
         }
 
@@ -435,11 +582,6 @@
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
             animation: shimmer 1.5s infinite;
         }
-
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
     </style>
 </head>
 <body>
@@ -473,7 +615,7 @@
         </span>
     </section>
 
-    <!-- ================= QUICK STATS (Optional) ================= -->
+    <!-- ================= QUICK STATS ================= -->
     <section class="quick-stats" data-aos="fade-up">
         <div class="stat-item">
             <div class="stat-icon">
@@ -481,7 +623,7 @@
             </div>
             <div class="stat-content">
                 <h4>Today's Collections</h4>
-                <p>₦0.00</p>
+                <p id="todayCollectionAmount">₦0.00</p>
             </div>
         </div>
         <div class="stat-item">
@@ -502,11 +644,19 @@
                 <p id="currentDate"></p>
             </div>
         </div>
+        <div class="stat-item">
+            <div class="stat-icon">
+                <i class="fa-solid fa-chart-simple"></i>
+            </div>
+            <div class="stat-content">
+                <h4>Transactions Today</h4>
+                <p id="todayTransactions">0</p>
+            </div>
+        </div>
     </section>
 
     <!-- ================= DASHBOARD CARDS ================= -->
     <section class="dashboard-cards">
-
         <!-- Accept Payment Card -->
         <a href="{{ url_for('accept_payment_page') }}" class="card-link" data-aos="fade-up" data-aos-delay="100">
             <div class="card">
@@ -534,31 +684,110 @@
             </div>
         </a>
 
-        <!-- Search Receipt Card (Commented out but ready for future use) -->
-        <!-- 
-        <a href="#" class="card-link" data-aos="fade-up" data-aos-delay="400">
-            <div class="card">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <h3>Search Receipt</h3>
-                <p>Find receipts by number, patient name, or date range</p>
-            </div>
-        </a>
-        -->
-
-        <!-- Revenue Report Card (Commented out but ready for future use) -->
-        <!-- 
-        <a href="#" class="card-link" data-aos="fade-up" data-aos-delay="500">
+        <!-- Remittance History Card -->
+        <a href="{{ url_for('cashier_remittance_history') }}" class="card-link" data-aos="fade-up" data-aos-delay="400">
             <div class="card">
                 <i class="fa-solid fa-chart-line"></i>
-                <h3>Revenue Report</h3>
-                <p>Generate detailed revenue reports with charts and analytics</p>
+                <h3>Remittance History</h3>
+                <p>Track all your daily remittances and financial reports</p>
             </div>
         </a>
-        -->
-
     </section>
 
-    <!-- ================= FOOTER (Optional) ================= -->
+    <!-- ================= REMITTANCE CARD (MOVED TO BOTTOM) ================= -->
+    <section class="remittance-card" data-aos="fade-up" data-aos-delay="500">
+        <div style="text-align: center; margin-bottom: 1rem;">
+            <i class="fa-solid fa-hand-holding-usd" style="font-size: 2.5rem;"></i>
+            <h3 style="margin-top: 0.5rem;">Daily Remittance</h3>
+            <p style="opacity: 0.9;">Submit your daily collections to the company account</p>
+        </div>
+
+        <div class="remittance-stats">
+            <div class="remittance-stat">
+                <i class="fa-solid fa-money-bill-wave"></i>
+                <label>Total Collected Today</label>
+                <div class="amount" id="totalCollected">₦0.00</div>
+            </div>
+            <div class="remittance-stat">
+                <i class="fa-solid fa-hand-holding-heart"></i>
+                <label>Amount Remitted</label>
+                <div class="amount" id="amountRemitted">₦0.00</div>
+            </div>
+            <div class="remittance-stat">
+                <i class="fa-solid fa-balance-scale"></i>
+                <label>Balance to Remit</label>
+                <div class="amount" id="balanceToRemit">₦0.00</div>
+            </div>
+        </div>
+
+        <div id="remittanceAlert" class="alert alert-remittance" style="display: none;">
+            <i class="fa-solid fa-info-circle"></i> 
+            <span id="remittanceMessage"></span>
+        </div>
+
+        <div class="remittance-actions">
+            <button type="button" class="btn-remit" onclick="showRemittanceModal()" id="remitButton">
+                <i class="fa-solid fa-hand-holding-usd"></i>
+                Submit Daily Remittance
+            </button>
+            <a href="{{ url_for('cashier_remittance_history') }}" class="btn-history">
+                <i class="fa-solid fa-history"></i>
+                View Remittance History
+            </a>
+            <a href="{{ url_for('billing_daily_report') }}" class="btn-history">
+                <i class="fa-solid fa-file-alt"></i>
+                Daily Report
+            </a>
+        </div>
+    </section>
+
+    <!-- ================= REMITTANCE MODAL ================= -->
+    <div class="modal fade" id="remittanceModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background: linear-gradient(135deg, #4361ee 0%, #7209b7 100%); color: white;">
+                    <h5 class="modal-title">
+                        <i class="fa-solid fa-hand-holding-usd"></i> Daily Remittance
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="remittanceForm" method="POST" action="{{ url_for('cashier_remittance') }}">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Today's Total Collection</label>
+                            <div class="form-control" id="modalTotalCollected" style="font-size: 1.2rem; font-weight: bold; background-color: #f8f9fa;" readonly>₦0.00</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Amount to Remit (₦)</label>
+                            <input type="number" class="form-control form-control-lg" id="amountToRemit" name="amount_remitted" 
+                                   step="0.01" required placeholder="Enter amount to remit">
+                            <small class="form-text text-muted">Enter the amount you are remitting to the company today</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Balance After Remittance</label>
+                            <div class="form-control" id="balanceAfterRemit" style="background-color: #e8f5e9;" readonly>₦0.00</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Notes (Optional)</label>
+                            <textarea class="form-control" name="notes" rows="3" placeholder="Any remarks about this remittance..."></textarea>
+                        </div>
+                        <div id="remittanceWarning" class="alert alert-warning" style="display: none;">
+                            <i class="fa-solid fa-exclamation-triangle"></i> 
+                            <span id="warningMessage"></span>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="submitRemittanceBtn">
+                            <i class="fa-solid fa-check"></i> Submit Remittance
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= FOOTER ================= -->
     <footer style="text-align: center; padding: 2rem; color: var(--gray-500);">
         <p>
             <i class="fa-regular fa-copyright"></i>
@@ -567,6 +796,8 @@
     </footer>
 
     <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     
     <script>
@@ -577,11 +808,78 @@
             offset: 50
         });
 
+        // Format currency function
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(amount);
+        }
+
+        // Load today's collection data
+        function loadTodayCollection() {
+            fetch('/billing/api/today-collection')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update quick stats
+                        document.getElementById('todayCollectionAmount').innerHTML = formatCurrency(data.total_collected);
+                        document.getElementById('todayTransactions').innerHTML = data.transaction_count || 0;
+                        
+                        // Update remittance card
+                        document.getElementById('totalCollected').innerHTML = formatCurrency(data.total_collected);
+                        document.getElementById('modalTotalCollected').innerHTML = formatCurrency(data.total_collected);
+                        
+                        if (data.remittance && data.remittance.amount_remitted > 0) {
+                            // Remittance already submitted today
+                            document.getElementById('amountRemitted').innerHTML = formatCurrency(data.remittance.amount_remitted);
+                            document.getElementById('balanceToRemit').innerHTML = formatCurrency(data.remittance.balance);
+                            
+                            // Show alert that remittance is already submitted
+                            const alertDiv = document.getElementById('remittanceAlert');
+                            const messageSpan = document.getElementById('remittanceMessage');
+                            alertDiv.style.display = 'block';
+                            messageSpan.innerHTML = `
+                                <strong>Remittance already submitted for today!</strong><br>
+                                Amount Remitted: ${formatCurrency(data.remittance.amount_remitted)}<br>
+                                Balance: ${formatCurrency(data.remittance.balance)}<br>
+                                ${data.remittance.notes ? `Notes: ${data.remittance.notes}` : ''}
+                            `;
+                            alertDiv.style.background = 'rgba(6, 214, 160, 0.3)';
+                            alertDiv.style.borderColor = '#06d6a0';
+                            
+                            // Disable remittance button
+                            const remitButton = document.getElementById('remitButton');
+                            remitButton.disabled = true;
+                            remitButton.style.opacity = '0.5';
+                            remitButton.style.cursor = 'not-allowed';
+                            remitButton.innerHTML = '<i class="fa-solid fa-check-circle"></i> Remittance Completed Today';
+                        } else {
+                            // No remittance submitted yet
+                            document.getElementById('amountRemitted').innerHTML = formatCurrency(0);
+                            document.getElementById('balanceToRemit').innerHTML = formatCurrency(data.total_collected);
+                            
+                            // Show alert that remittance is pending
+                            const alertDiv = document.getElementById('remittanceAlert');
+                            const messageSpan = document.getElementById('remittanceMessage');
+                            alertDiv.style.display = 'block';
+                            messageSpan.innerHTML = `
+                                <strong>Remittance pending for today!</strong><br>
+                                Please submit your daily remittance to the company account.
+                            `;
+                            alertDiv.style.background = 'rgba(255, 158, 0, 0.3)';
+                            alertDiv.style.borderColor = '#ff9e00';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading collection data:', error);
+                    document.getElementById('remittanceAlert').style.display = 'block';
+                    document.getElementById('remittanceMessage').innerHTML = 'Error loading collection data. Please refresh the page.';
+                });
+        }
+
         // Update time and date
         function updateDateTime() {
             const now = new Date();
             
-            // Format time
             const timeString = now.toLocaleTimeString('en-US', { 
                 hour12: true, 
                 hour: '2-digit', 
@@ -589,7 +887,6 @@
                 second: '2-digit'
             });
             
-            // Format date
             const dateString = now.toLocaleDateString('en-US', { 
                 year: 'numeric', 
                 month: 'long', 
@@ -603,27 +900,102 @@
             if (dateElement) dateElement.textContent = dateString;
         }
         
-        // Update immediately and every second
-        updateDateTime();
-        setInterval(updateDateTime, 1000);
+        // Show remittance modal
+        function showRemittanceModal() {
+            const totalCollected = document.getElementById('totalCollected').innerText;
+            const remitButton = document.getElementById('remitButton');
+            
+            if (remitButton.disabled) {
+                alert('You have already submitted remittance for today!');
+                return;
+            }
+            
+            // Refresh collection data before showing modal
+            fetch('/billing/api/today-collection')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && (!data.remittance || data.remittance.amount_remitted === 0)) {
+                        document.getElementById('modalTotalCollected').innerHTML = formatCurrency(data.total_collected);
+                        document.getElementById('amountToRemit').value = '';
+                        document.getElementById('balanceAfterRemit').innerHTML = formatCurrency(0);
+                        document.getElementById('remittanceWarning').style.display = 'none';
+                        
+                        // Store total collected for validation
+                        window.currentTotalCollected = data.total_collected;
+                        
+                        const modal = new bootstrap.Modal(document.getElementById('remittanceModal'));
+                        modal.show();
+                    } else if (data.remittance && data.remittance.amount_remitted > 0) {
+                        alert('You have already submitted remittance for today!');
+                    } else {
+                        alert('Error loading data. Please refresh the page.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading collection data');
+                });
+        }
 
-        // Add loading state to cards on click
-        document.querySelectorAll('.card-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                const card = this.querySelector('.card');
-                if (card) {
-                    card.classList.add('loading');
+        // Calculate balance in real-time
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTodayCollection();
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+            
+            const amountToRemit = document.getElementById('amountToRemit');
+            if (amountToRemit) {
+                amountToRemit.addEventListener('input', function() {
+                    const totalCollected = window.currentTotalCollected || 0;
+                    const remitAmount = parseFloat(this.value) || 0;
+                    const balance = totalCollected - remitAmount;
                     
-                    // Remove loading state after navigation (or timeout)
-                    setTimeout(() => {
-                        card.classList.remove('loading');
-                    }, 1000);
-                }
+                    document.getElementById('balanceAfterRemit').innerHTML = formatCurrency(balance);
+                    
+                    const warningDiv = document.getElementById('remittanceWarning');
+                    const warningMessage = document.getElementById('warningMessage');
+                    
+                    if (remitAmount > totalCollected) {
+                        warningDiv.style.display = 'block';
+                        warningMessage.innerHTML = `Remittance amount cannot exceed total collected (${formatCurrency(totalCollected)})`;
+                        document.getElementById('submitRemittanceBtn').disabled = true;
+                        document.getElementById('balanceAfterRemit').style.backgroundColor = '#ffebee';
+                    } else if (remitAmount <= 0) {
+                        warningDiv.style.display = 'block';
+                        warningMessage.innerHTML = 'Please enter a valid remittance amount greater than 0';
+                        document.getElementById('submitRemittanceBtn').disabled = true;
+                        document.getElementById('balanceAfterRemit').style.backgroundColor = '#fff3e0';
+                    } else {
+                        warningDiv.style.display = 'none';
+                        document.getElementById('submitRemittanceBtn').disabled = false;
+                        document.getElementById('balanceAfterRemit').style.backgroundColor = '#e8f5e9';
+                    }
+                });
+            }
+
+            // Add loading state to cards on click
+            document.querySelectorAll('.card-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    const card = this.querySelector('.card');
+                    if (card) {
+                        card.classList.add('loading');
+                        setTimeout(() => {
+                            card.classList.remove('loading');
+                        }, 1000);
+                    }
+                });
             });
         });
 
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
+            // Ctrl+R for Remittance
+            if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                e.preventDefault();
+                if (!document.getElementById('remitButton').disabled) {
+                    showRemittanceModal();
+                }
+            }
             // Ctrl+1 for Accept Payment
             if ((e.ctrlKey || e.metaKey) && e.key === '1') {
                 e.preventDefault();
@@ -639,13 +1011,6 @@
                 e.preventDefault();
                 window.location.href = "{{ url_for('payment_history') }}";
             }
-        });
-
-        // Tooltips for accessibility
-        document.querySelectorAll('.card').forEach(card => {
-            card.addEventListener('mouseenter', function() {
-                this.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-            });
         });
     </script>
 </body>

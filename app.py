@@ -390,6 +390,22 @@ def create_tables():
                 reviewed_at TIMESTAMP,
                 rejection_reason TEXT
             );
+        """,
+        # Add this to your create_tables() function in the queries dictionary
+        "cashier_remittances": """
+            CREATE TABLE IF NOT EXISTS cashier_remittances (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cashier_id INTEGER NOT NULL REFERENCES cashier_users(id),
+                cashier_name VARCHAR(100) NOT NULL,
+                remittance_date DATE NOT NULL,
+                amount_collected DECIMAL(10, 2) NOT NULL,
+                amount_remitted DECIMAL(10, 2) NOT NULL,
+                balance DECIMAL(10, 2) NOT NULL,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by INTEGER REFERENCES admin_users(id),
+                UNIQUE(cashier_id, remittance_date)
+            );
         """
     }
 
@@ -434,7 +450,10 @@ def create_tables():
         "CREATE INDEX IF NOT EXISTS idx_billing_users_username ON billing_users(username);",
         "CREATE INDEX IF NOT EXISTS idx_cashier_users_username ON cashier_users(username);",
         "CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_admin_id ON admin_audit_logs(admin_id);",
-        "CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at ON admin_audit_logs(created_at);"
+        "CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at ON admin_audit_logs(created_at);",
+        # Add to your indexes list
+        "CREATE INDEX IF NOT EXISTS idx_cashier_remittances_date ON cashier_remittances(remittance_date);",
+        "CREATE INDEX IF NOT EXISTS idx_cashier_remittances_cashier ON cashier_remittances(cashier_id, remittance_date);"
     ]
     
     for index_query in indexes:
@@ -491,7 +510,374 @@ def create_default_users():
     cursor.close()
     conn.close()
     
+
+# Add these imports at the top if not already present
+from datetime import date, datetime, timedelta
+
+# Add these routes to your app.py file (after your existing billing routes)
+
+# -------------------- CASHIER REMITTANCE ROUTES --------------------
+@app.route('/billing/remittance', methods=['GET', 'POST'])
+def cashier_remittance():
+    """Handle cashier daily remittance submission."""
+    if "billing_user_id" not in session:
+        return redirect(url_for("billing_login"))
     
+    today = date.today()
+    cashier_id = session["billing_user_id"]
+    cashier_name = session.get("billing_username", "Cashier")
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Get today's total collected amount
+    cur.execute("""
+        SELECT COALESCE(SUM(amount_paid), 0)
+        FROM payments 
+        WHERE DATE(payment_date) = ? AND recorded_by = ?
+    """, (today.strftime('%Y-%m-%d'), cashier_id))
+    
+    total_collected = float(cur.fetchone()[0] or 0)
+    
+    # Check if already remitted today
+    cur.execute("""
+        SELECT id, amount_collected, amount_remitted, balance, notes
+        FROM cashier_remittances
+        WHERE cashier_id = ? AND remittance_date = ?
+    """, (cashier_id, today.strftime('%Y-%m-%d')))
+    
+    existing_remittance = cur.fetchone()
+    
+    if request.method == 'POST':
+        amount_remitted = float(request.form.get('amount_remitted', 0))
+        notes = request.form.get('notes', '')
+        
+        if amount_remitted <= 0:
+            flash("Please enter a valid remittance amount", "danger")
+            return redirect(url_for('cashier_remittance'))
+        
+        if amount_remitted > total_collected:
+            flash(f"Remittance amount (₦{amount_remitted:,.2f}) cannot exceed total collected (₦{total_collected:,.2f})", "danger")
+            return redirect(url_for('cashier_remittance'))
+        
+        balance = total_collected - amount_remitted
+        
+        try:
+            if existing_remittance:
+                # Update existing remittance
+                cur.execute("""
+                    UPDATE cashier_remittances
+                    SET amount_collected = ?,
+                        amount_remitted = ?,
+                        balance = ?,
+                        notes = ?
+                    WHERE id = ?
+                """, (total_collected, amount_remitted, balance, notes, existing_remittance[0]))
+                flash("Remittance updated successfully!", "success")
+            else:
+                # Insert new remittance
+                cur.execute("""
+                    INSERT INTO cashier_remittances 
+                    (cashier_id, cashier_name, remittance_date, amount_collected, 
+                     amount_remitted, balance, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (cashier_id, cashier_name, today.strftime('%Y-%m-%d'), 
+                      total_collected, amount_remitted, balance, notes))
+                flash("Remittance submitted successfully!", "success")
+            
+            conn.commit()
+            return redirect(url_for('cashier_remittance_history'))
+            
+        except Exception as e:
+            conn.rollback()
+            app.logger.error(f"Error saving remittance: {e}")
+            flash(f"Error saving remittance: {str(e)}", "danger")
+        
+        finally:
+            cur.close()
+            conn.close()
+    
+    # For GET request
+    current_remittance = None
+    if existing_remittance:
+        current_remittance = {
+            'id': existing_remittance[0],
+            'amount_collected': float(existing_remittance[1]),
+            'amount_remitted': float(existing_remittance[2]),
+            'balance': float(existing_remittance[3]),
+            'notes': existing_remittance[4]
+        }
+    
+    cur.close()
+    conn.close()
+    
+    return render_template(
+        "cashier_remittance.html",
+        today=today,
+        total_collected=total_collected,
+        current_remittance=current_remittance,
+        cashier_name=cashier_name,
+        hospital_name="All Saint Medical Center Nsukka, Enugu State"
+    )
+
+
+@app.route('/billing/remittance/history')
+def cashier_remittance_history():
+    """View remittance history for the current cashier."""
+    if "billing_user_id" not in session:
+        return redirect(url_for("billing_login"))
+    
+    cashier_id = session["billing_user_id"]
+    cashier_name = session.get("billing_username", "Cashier")
+    
+    page = request.args.get("page", 1, type=int)
+    per_page = 20
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    try:
+        # Get total count
+        cur.execute("""
+            SELECT COUNT(*) FROM cashier_remittances
+            WHERE cashier_id = ?
+        """, (cashier_id,))
+        total_items = cur.fetchone()[0]
+        
+        # Get paginated history
+        offset = (page - 1) * per_page
+        cur.execute("""
+            SELECT id, remittance_date, amount_collected, amount_remitted, 
+                   balance, notes, created_at
+            FROM cashier_remittances
+            WHERE cashier_id = ?
+            ORDER BY remittance_date DESC
+            LIMIT ? OFFSET ?
+        """, (cashier_id, per_page, offset))
+        
+        remittances = cur.fetchall()
+        
+        # Calculate summary statistics
+        cur.execute("""
+            SELECT 
+                COUNT(*) as total_remittances,
+                COALESCE(SUM(amount_collected), 0) as total_collected,
+                COALESCE(SUM(amount_remitted), 0) as total_remitted,
+                COALESCE(SUM(balance), 0) as total_balance
+            FROM cashier_remittances
+            WHERE cashier_id = ?
+        """, (cashier_id,))
+        
+        summary = cur.fetchone()
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching remittance history: {e}")
+        remittances = []
+        total_items = 0
+        summary = (0, 0, 0, 0)
+        flash("Error loading remittance history", "danger")
+    
+    finally:
+        cur.close()
+        conn.close()
+    
+    total_pages = (total_items + per_page - 1) // per_page if total_items > 0 else 1
+    
+    return render_template(
+        "cashier_remittance_history.html",
+        remittances=remittances,
+        summary={
+            'total_remittances': summary[0],
+            'total_collected': float(summary[1]),
+            'total_remitted': float(summary[2]),
+            'total_balance': float(summary[3])
+        },
+        page=page,
+        total_pages=total_pages,
+        cashier_name=cashier_name,
+        hospital_name="All Saint Medical Center Nsukka, Enugu State"
+    )
+
+
+@app.route('/billing/daily-report')
+def billing_daily_report():
+    """Show daily report with remittance information."""
+    if "billing_user_id" not in session:
+        return redirect(url_for("billing_login"))
+    
+    selected_date = request.args.get("date", date.today().strftime('%Y-%m-%d'))
+    cashier_id = session["billing_user_id"]
+    cashier_name = session.get("billing_username", "Cashier")
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    try:
+        # Get today's collections
+        cur.execute("""
+            SELECT 
+                COUNT(*) as transaction_count,
+                COALESCE(SUM(amount_paid), 0) as total_collected,
+                COALESCE(AVG(amount_paid), 0) as avg_transaction,
+                COUNT(DISTINCT payment_method) as payment_methods_used
+            FROM payments 
+            WHERE DATE(payment_date) = ? AND recorded_by = ?
+        """, (selected_date, cashier_id))
+        
+        collections = cur.fetchone()
+        
+        # Get payment method breakdown
+        cur.execute("""
+            SELECT 
+                payment_method,
+                COUNT(*) as count,
+                COALESCE(SUM(amount_paid), 0) as total
+            FROM payments 
+            WHERE DATE(payment_date) = ? AND recorded_by = ?
+            GROUP BY payment_method
+            ORDER BY total DESC
+        """, (selected_date, cashier_id))
+        
+        payment_breakdown = cur.fetchall()
+        
+        # Get remittance for the day
+        cur.execute("""
+            SELECT amount_collected, amount_remitted, balance, notes, created_at
+            FROM cashier_remittances
+            WHERE cashier_id = ? AND remittance_date = ?
+        """, (cashier_id, selected_date))
+        
+        remittance = cur.fetchone()
+        
+        # Get detailed transactions for the day
+        cur.execute("""
+            SELECT id, patient_name, service_type, amount_paid, 
+                   payment_method, status, payment_date, created_at
+            FROM payments 
+            WHERE DATE(payment_date) = ? AND recorded_by = ?
+            ORDER BY created_at DESC
+            LIMIT 50
+        """, (selected_date, cashier_id))
+        
+        transactions = cur.fetchall()
+        
+        # Check if remittance is pending
+        remittance_status = "pending"
+        remittance_data = None
+        
+        if remittance:
+            remittance_status = "completed"
+            remittance_data = {
+                'amount_collected': float(remittance[0]),
+                'amount_remitted': float(remittance[1]),
+                'balance': float(remittance[2]),
+                'notes': remittance[3],
+                'created_at': remittance[4]
+            }
+            
+            # Check if balance matches current collections
+            if remittance_data['amount_collected'] != float(collections[1]):
+                remittance_status = "mismatch"
+        
+    except Exception as e:
+        app.logger.error(f"Error generating daily report: {e}")
+        collections = (0, 0, 0, 0)
+        payment_breakdown = []
+        remittance = None
+        transactions = []
+        remittance_status = "pending"
+        remittance_data = None
+        flash("Error generating daily report", "danger")
+    
+    finally:
+        cur.close()
+        conn.close()
+    
+    # Parse the selected date
+    try:
+        parsed_date = datetime.strptime(selected_date, '%Y-%m-%d')
+    except:
+        parsed_date = datetime.now()
+    
+    return render_template(
+        "billing_daily_report.html",
+        selected_date=parsed_date,
+        collections={
+            'transaction_count': collections[0],
+            'total_collected': float(collections[1]),
+            'avg_transaction': float(collections[2]),
+            'payment_methods_used': collections[3]
+        },
+        payment_breakdown=payment_breakdown,
+        remittance_status=remittance_status,
+        remittance=remittance_data,
+        transactions=transactions,
+        cashier_name=cashier_name,
+        hospital_name="All Saint Medical Center Nsukka, Enugu State"
+    )
+
+
+@app.route('/billing/api/today-collection')
+def api_today_collection():
+    """API endpoint to get today's collection and remittance status."""
+    if "billing_user_id" not in session:
+        return jsonify({"success": False, "message": "Unauthorized"}), 401
+    
+    cashier_id = session["billing_user_id"]
+    today = date.today()
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    try:
+        # Get today's total collection
+        cur.execute("""
+            SELECT COALESCE(SUM(amount_paid), 0)
+            FROM payments 
+            WHERE DATE(payment_date) = ? AND recorded_by = ?
+        """, (today.strftime('%Y-%m-%d'), cashier_id))
+        
+        total_collected = float(cur.fetchone()[0] or 0)
+        
+        # Get today's transaction count
+        cur.execute("""
+            SELECT COUNT(*)
+            FROM payments 
+            WHERE DATE(payment_date) = ? AND recorded_by = ?
+        """, (today.strftime('%Y-%m-%d'), cashier_id))
+        
+        transaction_count = cur.fetchone()[0] or 0
+        
+        # Get today's remittance if exists
+        cur.execute("""
+            SELECT amount_remitted, balance, notes
+            FROM cashier_remittances
+            WHERE cashier_id = ? AND remittance_date = ?
+        """, (cashier_id, today.strftime('%Y-%m-%d')))
+        
+        remittance_row = cur.fetchone()
+        remittance = None
+        if remittance_row:
+            remittance = {
+                'amount_remitted': float(remittance_row[0]),
+                'balance': float(remittance_row[1]),
+                'notes': remittance_row[2]
+            }
+        
+        return jsonify({
+            "success": True,
+            "total_collected": total_collected,
+            "transaction_count": transaction_count,
+            "remittance": remittance
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching today's collection: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+    
+    finally:
+        cur.close()
+        conn.close()             
 def create_nkiru_user():
     """Create Nkiru as a default cashier/billing user."""
     conn = get_db_connection()
