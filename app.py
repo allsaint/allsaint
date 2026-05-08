@@ -524,6 +524,7 @@ def cashier_remittance():
         return redirect(url_for("billing_login"))
     
     today = date.today()
+    today_str = today.strftime('%Y-%m-%d')
     cashier_id = session["billing_user_id"]
     cashier_name = session.get("billing_username", "Cashier")
     
@@ -534,8 +535,8 @@ def cashier_remittance():
     cur.execute("""
         SELECT COALESCE(SUM(amount_paid), 0)
         FROM payments 
-        WHERE DATE(payment_date) = ? AND recorded_by = ?
-    """, (today.strftime('%Y-%m-%d'), cashier_id))
+        WHERE DATE(payment_date) = DATE('now', 'localtime') AND recorded_by = ?
+    """, (cashier_id,))
     
     total_collected = float(cur.fetchone()[0] or 0)
     
@@ -543,8 +544,8 @@ def cashier_remittance():
     cur.execute("""
         SELECT id, amount_collected, amount_remitted, balance, notes
         FROM cashier_remittances
-        WHERE cashier_id = ? AND remittance_date = ?
-    """, (cashier_id, today.strftime('%Y-%m-%d')))
+        WHERE cashier_id = ? AND remittance_date = DATE('now', 'localtime')
+    """, (cashier_id,))
     
     existing_remittance = cur.fetchone()
     
@@ -564,7 +565,6 @@ def cashier_remittance():
         
         try:
             if existing_remittance:
-                # Update existing remittance
                 cur.execute("""
                     UPDATE cashier_remittances
                     SET amount_collected = ?,
@@ -575,13 +575,12 @@ def cashier_remittance():
                 """, (total_collected, amount_remitted, balance, notes, existing_remittance[0]))
                 flash("Remittance updated successfully!", "success")
             else:
-                # Insert new remittance
                 cur.execute("""
                     INSERT INTO cashier_remittances 
                     (cashier_id, cashier_name, remittance_date, amount_collected, 
                      amount_remitted, balance, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (cashier_id, cashier_name, today.strftime('%Y-%m-%d'), 
+                    VALUES (?, ?, DATE('now', 'localtime'), ?, ?, ?, ?)
+                """, (cashier_id, cashier_name,
                       total_collected, amount_remitted, balance, notes))
                 flash("Remittance submitted successfully!", "success")
             
@@ -596,7 +595,32 @@ def cashier_remittance():
         finally:
             cur.close()
             conn.close()
+            return redirect(url_for('cashier_remittance'))
     
+    # GET request — build current_remittance for template
+    current_remittance = None
+    if existing_remittance:
+        current_remittance = {
+            'id': existing_remittance[0],
+            'amount_collected': float(existing_remittance[1]),
+            'amount_remitted': float(existing_remittance[2]),
+            'balance': float(existing_remittance[3]),
+            'notes': existing_remittance[4]
+        }
+    
+    cur.close()
+    conn.close()
+    
+    return render_template(
+        "cashier_remittance.html",
+        today=today,
+        total_collected=total_collected,
+        current_remittance=current_remittance,
+        cashier_name=cashier_name,
+        hospital_name="All Saint Medical Center Nsukka, Enugu State"
+    )
+    
+        
     # For GET request
     current_remittance = None
     if existing_remittance:
@@ -834,8 +858,8 @@ def api_today_collection():
         cur.execute("""
             SELECT COALESCE(SUM(amount_paid), 0)
             FROM payments 
-            WHERE DATE(payment_date) = ? AND recorded_by = ?
-        """, (today.strftime('%Y-%m-%d'), cashier_id))
+            WHERE DATE(payment_date) = DATE('now', 'localtime') AND recorded_by = ?
+        """, (cashier_id,))
         
         total_collected = float(cur.fetchone()[0] or 0)
         
@@ -843,8 +867,8 @@ def api_today_collection():
         cur.execute("""
             SELECT COUNT(*)
             FROM payments 
-            WHERE DATE(payment_date) = ? AND recorded_by = ?
-        """, (today.strftime('%Y-%m-%d'), cashier_id))
+            WHERE DATE(payment_date) = DATE('now', 'localtime') AND recorded_by = ?
+        """, (cashier_id,))
         
         transaction_count = cur.fetchone()[0] or 0
         
@@ -852,8 +876,8 @@ def api_today_collection():
         cur.execute("""
             SELECT amount_remitted, balance, notes
             FROM cashier_remittances
-            WHERE cashier_id = ? AND remittance_date = ?
-        """, (cashier_id, today.strftime('%Y-%m-%d')))
+            WHERE cashier_id = ? AND remittance_date = DATE('now', 'localtime')
+        """, (cashier_id,))
         
         remittance_row = cur.fetchone()
         remittance = None
@@ -877,7 +901,9 @@ def api_today_collection():
     
     finally:
         cur.close()
-        conn.close()             
+        conn.close()
+        
+                    
 def create_nkiru_user():
     """Create Nkiru as a default cashier/billing user."""
     conn = get_db_connection()
@@ -2007,7 +2033,6 @@ def billing_confirm_payment():
 
     patient_name = request.form.get("patient_name")
     service_type = request.form.get("service_type")
-    receipt_date = request.form.get("receipt_date")
     payment_method = request.form.get("payment_method")
     amount_paid = float(request.form.get("amount_paid", 0))
     vat_percent = float(request.form.get("vat", 0))
@@ -2018,6 +2043,9 @@ def billing_confirm_payment():
     grand_total = subtotal + vat_amount - discount
     balance = 0 if amount_paid >= grand_total else grand_total - amount_paid
     status = "Paid" if balance <= 0 else "Partial"
+
+    # Always use today's date — never trust the form's date field
+    payment_date = date.today().strftime('%Y-%m-%d')
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -2033,7 +2061,7 @@ def billing_confirm_payment():
         """, (
             patient_name, service_type, subtotal, discount, vat_amount,
             grand_total, amount_paid, balance, payment_method,
-            status, receipt_date, session["billing_user_id"]
+            status, payment_date, session["billing_user_id"]
         ))
 
         payment_id = cur.lastrowid
@@ -2043,13 +2071,16 @@ def billing_confirm_payment():
 
     except Exception as e:
         conn.rollback()
-        flash(f"Payment error: {e}", "danger")
+        app.logger.error(f"Payment error: {e}")
+        flash(f"Payment error: {str(e)}", "danger")
         return redirect(url_for("accept_payment_page"))
 
     finally:
         cur.close()
-        conn.close()
-
+        conn.close()        
+        
+        
+        
 @app.route("/billing/accept-payment", methods=["GET"])
 def accept_payment_page():
     return render_template("accept_payment.html")
@@ -2065,87 +2096,85 @@ def payment_history():
     status = request.args.get("status", "")
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
-    
+
     page = request.args.get("page", 1, type=int)
     per_page = 20
-    
+
     conn = get_db_connection()
     cur = conn.cursor()
-    
+
     query = "SELECT * FROM payments WHERE 1=1"
     count_query = "SELECT COUNT(*) FROM payments WHERE 1=1"
     params = []
-    
+
     if patient_name:
         query += " AND LOWER(patient_name) LIKE LOWER(?)"
         count_query += " AND LOWER(patient_name) LIKE LOWER(?)"
         params.append(f"%{patient_name}%")
-    
+
     if service_type:
         query += " AND service_type = ?"
         count_query += " AND service_type = ?"
         params.append(service_type)
-    
+
     if payment_method:
         query += " AND payment_method = ?"
         count_query += " AND payment_method = ?"
         params.append(payment_method)
-    
+
     if status:
         query += " AND status = ?"
         count_query += " AND status = ?"
         params.append(status)
-    
+
     if start_date:
-        query += " AND payment_date >= ?"
-        count_query += " AND payment_date >= ?"
+        query += " AND DATE(payment_date) >= ?"
+        count_query += " AND DATE(payment_date) >= ?"
         params.append(start_date)
-    
+
     if end_date:
-        query += " AND payment_date <= ?"
-        count_query += " AND payment_date <= ?"
+        query += " AND DATE(payment_date) <= ?"
+        count_query += " AND DATE(payment_date) <= ?"
         params.append(end_date)
-    
+
     cur.execute(count_query, params)
     total_items = cur.fetchone()[0]
-    
+
     query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
     offset = (page - 1) * per_page
     params.extend([per_page, offset])
-    
+
     cur.execute(query, params)
     payments = cur.fetchall()
-    
+
     cur.execute("SELECT DISTINCT service_type FROM payments WHERE service_type IS NOT NULL ORDER BY service_type")
     service_types = [row[0] for row in cur.fetchall()]
-    
-    # AFTER
+
+    def parse_dt(val):
+        if not val or not isinstance(val, str):
+            return val
+        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
+            try:
+                return datetime.strptime(val, fmt)
+            except ValueError:
+                continue
+        return None
+
     total_amount = 0
     formatted_payments = []
     for payment in payments:
         payment_dict = dict(payment)
         payment_dict["amount_paid"] = float(payment_dict["amount_paid"])
-
-        # Convert payment_date string to datetime object
-        pd = payment_dict.get("payment_date")
-        if pd and isinstance(pd, str):
-            for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
-                try:
-                    payment_dict["payment_date"] = datetime.strptime(pd, fmt)
-                    break
-                except ValueError:
-                    continue
-            else:
-                payment_dict["payment_date"] = None  # unparseable — let template handle it
-
+        payment_dict["payment_date"] = parse_dt(payment_dict.get("payment_date"))
+        payment_dict["created_at"] = parse_dt(payment_dict.get("created_at"))
         formatted_payments.append(payment_dict)
         total_amount += payment_dict["amount_paid"]
-    
+
     cur.close()
     conn.close()
-    
+
     total_pages = (total_items + per_page - 1) // per_page
-    
+
     return render_template(
         "billing_payment_history.html",
         payments=formatted_payments,
@@ -2156,6 +2185,7 @@ def payment_history():
         total_pages=total_pages,
         current_filters=request.args
     )
+    
 def parse_date(value):
     """Safely parse a date string or return None."""
     if not value or not isinstance(value, str):
@@ -2329,9 +2359,9 @@ def todays_collection():
         SELECT id, patient_name, service_type, amount_paid, 
                payment_method, status, created_at
         FROM payments 
-        WHERE DATE(payment_date) = ?
+        WHERE DATE(payment_date) = DATE('now', 'localtime')
         ORDER BY created_at DESC
-    """, (today.strftime('%Y-%m-%d'),))
+    """)
     
     today_payments = cur.fetchall()
     
@@ -2348,6 +2378,17 @@ def todays_collection():
     grand_total = 0
     amounts = []
     
+    def parse_dt(val):
+        """Parse a date/datetime string into a datetime object."""
+        if not val or not isinstance(val, str):
+            return val
+        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+            try:
+                return datetime.strptime(val, fmt)
+            except ValueError:
+                continue
+        return None
+
     recent_transactions = []
     for payment in today_payments:
         amount_paid = float(payment[3])
@@ -2363,16 +2404,6 @@ def todays_collection():
             payment_methods_data['Other']['amount'] += amount_paid
             payment_methods_data['Other']['count'] += 1
         
-        # AFTER
-        raw_created_at = payment[6]
-        if raw_created_at and isinstance(raw_created_at, str):
-            for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
-                try:
-                    raw_created_at = datetime.strptime(raw_created_at, fmt)
-                    break
-                except ValueError:
-                    continue
-
         recent_transactions.append({
             'id': payment[0],
             'patient_name': payment[1],
@@ -2380,7 +2411,7 @@ def todays_collection():
             'amount_paid': amount_paid,
             'payment_method': payment_method,
             'status': payment[5],
-            'created_at': raw_created_at   # ← proper datetime
+            'created_at': parse_dt(payment[6])
         })
     
     average_transaction = grand_total / total_transactions if total_transactions > 0 else 0
@@ -2392,10 +2423,8 @@ def todays_collection():
     evening_total = 0
     
     for payment in today_payments:
-        created_at = payment[6]
-        if created_at:
-            if isinstance(created_at, str):
-                created_at = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+        created_at = parse_dt(payment[6])
+        if created_at and hasattr(created_at, 'hour'):
             hour = created_at.hour
             amount = float(payment[3])
             
@@ -2445,7 +2474,8 @@ def todays_collection():
         evening_total=evening_total,
         daily_target=daily_target
     )
-
+    
+    
 # Custom filter for currency formatting
 @app.template_filter('currency')
 def currency_filter(amount):
@@ -3901,7 +3931,6 @@ def admin_pharmacy_revenue():
         today_str=today.strftime("%Y-%m-%d"),
         admin_name=session.get('admin_full_name', 'Admin')
     )
-
 @app.route('/admin/reports/billing-payments')
 def admin_billing_payments():
     if 'admin_id' not in session:
@@ -3987,6 +4016,18 @@ def admin_billing_payments():
         for payment in payments:
             payment_dict = dict(payment)
             payment_dict["amount_paid"] = float(payment_dict["amount_paid"])
+
+            # Parse date/datetime string fields into datetime objects
+            for date_field in ("created_at", "payment_date"):
+                val = payment_dict.get(date_field)
+                if val and isinstance(val, str):
+                    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
+                        try:
+                            payment_dict[date_field] = datetime.strptime(val, fmt)
+                            break
+                        except ValueError:
+                            continue
+
             formatted_payments.append(payment_dict)
             total_amount += payment_dict["amount_paid"]
         
