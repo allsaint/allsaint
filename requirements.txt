@@ -21,7 +21,7 @@ pytz==2025.2
 requests==2.31.0
 six==1.17.0
 SQLAlchemy==2.0.46
-sqlitecloud==0.0.8
+sqlitecloud==0.0.84
 typing_extensions==4.15.0
 tzdata==2025.3
 Werkzeug==3.1.5
