@@ -2,6 +2,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
+import sqlitecloud  # Add SQLite Cloud support
 import os
 from datetime import datetime, date, timedelta
 from calendar import month_name
@@ -28,20 +29,42 @@ if not app.debug:
 app.logger.setLevel(logging.INFO)
 
 # -------------------- DATABASE CONFIGURATION --------------------
-# Use SQLite database
+# SQLite Cloud configuration (persistent storage on Render)
+SQLITECLOUD_CONNECTION = os.environ.get('SQLITECLOUD_CONNECTION', '')
+USE_SQLITECLOUD = os.environ.get('USE_SQLITECLOUD', 'False').lower() == 'true'
+
+# Local SQLite for development/fallback
 DATABASE_PATH = os.environ.get('DATABASE_PATH', 'hospital.db')
 
 def get_db_connection():
-    """Establish SQLite database connection."""
+    """Establish database connection - SQLite Cloud in production, SQLite locally"""
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        conn.row_factory = sqlite3.Row  # Access columns by name
-        # Enable foreign keys
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
+        if USE_SQLITECLOUD and SQLITECLOUD_CONNECTION:
+            # Connect to SQLite Cloud (data persists forever!)
+            app.logger.info("Connecting to SQLite Cloud...")
+            conn = sqlitecloud.connect(SQLITECLOUD_CONNECTION)
+            conn.row_factory = sqlitecloud.Row
+            app.logger.info("✅ Connected to SQLite Cloud successfully!")
+            return conn
+        else:
+            # Local SQLite for development
+            conn = sqlite3.connect(DATABASE_PATH)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            app.logger.info(f"Connected to local SQLite database at {DATABASE_PATH}")
+            return conn
     except Exception as e:
         app.logger.error(f"Database connection error: {e}")
-        return None
+        # Fallback to local SQLite if cloud connection fails
+        try:
+            conn = sqlite3.connect(DATABASE_PATH)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            app.logger.warning("Falling back to local SQLite database")
+            return conn
+        except Exception as fallback_error:
+            app.logger.error(f"Fallback connection also failed: {fallback_error}")
+            return None
 
 # Session configuration
 app.config.update(
@@ -59,9 +82,14 @@ def health_check():
         if conn:
             cursor = conn.cursor()
             cursor.execute("SELECT 1")
+            result = cursor.fetchone()
             cursor.close()
             conn.close()
-            return jsonify({"status": "healthy", "database": "connected"}), 200
+            return jsonify({
+                "status": "healthy", 
+                "database": "sqlitecloud" if (USE_SQLITECLOUD and SQLITECLOUD_CONNECTION) else "sqlite",
+                "cloud_enabled": USE_SQLITECLOUD and bool(SQLITECLOUD_CONNECTION)
+            }), 200
         else:
             return jsonify({"status": "unhealthy", "database": "disconnected"}), 500
     except Exception as e:
@@ -391,7 +419,7 @@ def create_tables():
                 rejection_reason TEXT
             );
         """,
-        # Add this to your create_tables() function in the queries dictionary
+        
         "cashier_remittances": """
             CREATE TABLE IF NOT EXISTS cashier_remittances (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -451,7 +479,6 @@ def create_tables():
         "CREATE INDEX IF NOT EXISTS idx_cashier_users_username ON cashier_users(username);",
         "CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_admin_id ON admin_audit_logs(admin_id);",
         "CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at ON admin_audit_logs(created_at);",
-        # Add to your indexes list
         "CREATE INDEX IF NOT EXISTS idx_cashier_remittances_date ON cashier_remittances(remittance_date);",
         "CREATE INDEX IF NOT EXISTS idx_cashier_remittances_cashier ON cashier_remittances(cashier_id, remittance_date);"
     ]
@@ -513,8 +540,6 @@ def create_default_users():
 
 # Add these imports at the top if not already present
 from datetime import date, datetime, timedelta
-
-# Add these routes to your app.py file (after your existing billing routes)
 
 # -------------------- CASHIER REMITTANCE ROUTES --------------------
 @app.route('/billing/remittance', methods=['GET', 'POST'])
@@ -598,30 +623,6 @@ def cashier_remittance():
             return redirect(url_for('cashier_remittance'))
     
     # GET request — build current_remittance for template
-    current_remittance = None
-    if existing_remittance:
-        current_remittance = {
-            'id': existing_remittance[0],
-            'amount_collected': float(existing_remittance[1]),
-            'amount_remitted': float(existing_remittance[2]),
-            'balance': float(existing_remittance[3]),
-            'notes': existing_remittance[4]
-        }
-    
-    cur.close()
-    conn.close()
-    
-    return render_template(
-        "cashier_remittance.html",
-        today=today,
-        total_collected=total_collected,
-        current_remittance=current_remittance,
-        cashier_name=cashier_name,
-        hospital_name="All Saint Medical Center Nsukka, Enugu State"
-    )
-    
-        
-    # For GET request
     current_remittance = None
     if existing_remittance:
         current_remittance = {
@@ -943,46 +944,6 @@ def create_nkiru_user():
     conn.commit()
     cursor.close()
     conn.close()
-    
-def create_nkiru_user():
-    """Create Nkiru as a default cashier/billing user."""
-    conn = get_db_connection()
-    if not conn:
-        return
-    
-    cursor = conn.cursor()
-    
-    try:
-        # Check if user already exists in cashier_users
-        cursor.execute("SELECT id FROM cashier_users WHERE username = ?", ("Cashier1",))
-        if not cursor.fetchone():
-            hashed_pw = generate_password_hash("Nkiru1@allsaints")
-            cursor.execute("""
-                INSERT INTO cashier_users (username, password, full_name, is_active)
-                VALUES (?, ?, ?, ?)
-            """, ("Cashier1", hashed_pw, "Nkiru", 1))
-            app.logger.info("Cashier user 'Nkiru' created successfully")
-        else:
-            app.logger.info("Cashier user 'Nkiru' already exists")
-        
-        # Check if user already exists in billing_users
-        cursor.execute("SELECT id FROM billing_users WHERE username = ?", ("Cashier1",))
-        if not cursor.fetchone():
-            hashed_pw = generate_password_hash("Nkiru1@allsaints")
-            cursor.execute("""
-                INSERT INTO billing_users (username, password, full_name, is_active)
-                VALUES (?, ?, ?, ?)
-            """, ("Cashier1", hashed_pw, "Nkiru", 1))
-            app.logger.info("Billing user 'Nkiru' created successfully")
-        else:
-            app.logger.info("Billing user 'Nkiru' already exists")
-            
-    except Exception as e:
-        app.logger.error(f"Error creating Nkiru user: {e}")
-    
-    conn.commit()
-    cursor.close()
-    conn.close()
 
 
 def create_christy_user():
@@ -1012,6 +973,8 @@ def create_christy_user():
     conn.commit()
     cursor.close()
     conn.close()
+
+
 def create_default_admin():
     """Create default admin user."""
     conn = get_db_connection()
@@ -1540,6 +1503,7 @@ def format_date_filter(date_value, format='%Y-%m-%d'):
     if hasattr(date_value, 'strftime'):
         return date_value.strftime(format)
     return str(date_value)
+
 @app.route('/api/drugs')
 def api_drugs():
     if 'pharmacist_id' not in session:
@@ -1684,7 +1648,6 @@ def confirm_payment():
                 total_amount, grand_total, created_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id;
         """, (
             data.get("patient_name"), data.get("patient_id"),
             data["subtotal"], data["discount"], data["tax"],
@@ -2079,8 +2042,6 @@ def billing_confirm_payment():
         cur.close()
         conn.close()        
         
-        
-        
 @app.route("/billing/accept-payment", methods=["GET"])
 def accept_payment_page():
     return render_template("accept_payment.html")
@@ -2101,83 +2062,90 @@ def payment_history():
     per_page = 20
 
     conn = get_db_connection()
+    if not conn:
+        app.logger.error("Database connection failed in payment_history")
+        flash("Unable to connect to database. Please try again later.", "danger")
+        return render_template("billing_payment_history.html", 
+                             payments=[], 
+                             service_types=[],
+                             total_items=0, 
+                             total_amount=0,
+                             page=1, 
+                             total_pages=1,
+                             current_filters=request.args)
+
     cur = conn.cursor()
+    
+    try:
+        query = "SELECT * FROM payments WHERE 1=1"
+        count_query = "SELECT COUNT(*) FROM payments WHERE 1=1"
+        params = []
 
-    query = "SELECT * FROM payments WHERE 1=1"
-    count_query = "SELECT COUNT(*) FROM payments WHERE 1=1"
-    params = []
+        if patient_name:
+            query += " AND LOWER(patient_name) LIKE LOWER(?)"
+            count_query += " AND LOWER(patient_name) LIKE LOWER(?)"
+            params.append(f"%{patient_name}%")
 
-    if patient_name:
-        query += " AND LOWER(patient_name) LIKE LOWER(?)"
-        count_query += " AND LOWER(patient_name) LIKE LOWER(?)"
-        params.append(f"%{patient_name}%")
+        if service_type:
+            query += " AND service_type = ?"
+            count_query += " AND service_type = ?"
+            params.append(service_type)
 
-    if service_type:
-        query += " AND service_type = ?"
-        count_query += " AND service_type = ?"
-        params.append(service_type)
+        if payment_method:
+            query += " AND payment_method = ?"
+            count_query += " AND payment_method = ?"
+            params.append(payment_method)
 
-    if payment_method:
-        query += " AND payment_method = ?"
-        count_query += " AND payment_method = ?"
-        params.append(payment_method)
+        if status:
+            query += " AND status = ?"
+            count_query += " AND status = ?"
+            params.append(status)
 
-    if status:
-        query += " AND status = ?"
-        count_query += " AND status = ?"
-        params.append(status)
+        if start_date:
+            query += " AND DATE(payment_date) >= ?"
+            count_query += " AND DATE(payment_date) >= ?"
+            params.append(start_date)
 
-    if start_date:
-        query += " AND DATE(payment_date) >= ?"
-        count_query += " AND DATE(payment_date) >= ?"
-        params.append(start_date)
+        if end_date:
+            query += " AND DATE(payment_date) <= ?"
+            count_query += " AND DATE(payment_date) <= ?"
+            params.append(end_date)
 
-    if end_date:
-        query += " AND DATE(payment_date) <= ?"
-        count_query += " AND DATE(payment_date) <= ?"
-        params.append(end_date)
+        cur.execute(count_query, params)
+        total_items = cur.fetchone()[0]
 
-    cur.execute(count_query, params)
-    total_items = cur.fetchone()[0]
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        offset = (page - 1) * per_page
+        params.extend([per_page, offset])
 
-    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-    offset = (page - 1) * per_page
-    params.extend([per_page, offset])
+        cur.execute(query, params)
+        payments = cur.fetchall()
 
-    cur.execute(query, params)
-    payments = cur.fetchall()
+        cur.execute("SELECT DISTINCT service_type FROM payments WHERE service_type IS NOT NULL ORDER BY service_type")
+        service_types = [row[0] for row in cur.fetchall()]
 
-    cur.execute("SELECT DISTINCT service_type FROM payments WHERE service_type IS NOT NULL ORDER BY service_type")
-    service_types = [row[0] for row in cur.fetchall()]
+        total_amount = 0
+        for payment in payments:
+            total_amount += float(payment[7])
 
-    def parse_dt(val):
-        if not val or not isinstance(val, str):
-            return val
-        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
-            try:
-                return datetime.strptime(val, fmt)
-            except ValueError:
-                continue
-        return None
+    except Exception as e:
+        app.logger.error(f"Error in payment_history: {str(e)}")
+        flash(f"Error loading payment history: {str(e)}", "danger")
+        payments = []
+        service_types = []
+        total_items = 0
+        total_amount = 0
+        page = 1
+        
+    finally:
+        cur.close()
+        conn.close()
 
-    total_amount = 0
-    formatted_payments = []
-    for payment in payments:
-        payment_dict = dict(payment)
-        payment_dict["amount_paid"] = float(payment_dict["amount_paid"])
-        payment_dict["payment_date"] = parse_dt(payment_dict.get("payment_date"))
-        payment_dict["created_at"] = parse_dt(payment_dict.get("created_at"))
-        formatted_payments.append(payment_dict)
-        total_amount += payment_dict["amount_paid"]
-
-    cur.close()
-    conn.close()
-
-    total_pages = (total_items + per_page - 1) // per_page
+    total_pages = (total_items + per_page - 1) // per_page if total_items > 0 else 1
 
     return render_template(
         "billing_payment_history.html",
-        payments=formatted_payments,
+        payments=payments,
         service_types=service_types,
         total_items=total_items,
         total_amount=total_amount,
@@ -2185,6 +2153,11 @@ def payment_history():
         total_pages=total_pages,
         current_filters=request.args
     )
+
+# [The rest of your routes - HR, Admin, etc. remain exactly the same]
+# They are too long to repeat, but you keep all your existing routes unchanged
+
+
     
 def parse_date(value):
     """Safely parse a date string or return None."""
@@ -4693,15 +4666,46 @@ def admin_export_todays_collection():
         cur.close()
         conn.close()
 
+# # -------------------- MAIN --------------------
+# if __name__ == "__main__":
+#     port = int(os.environ.get("PORT", 5000))
+    
+#     # Log which database mode we're using
+#     if USE_TURSO and TURSO_HTTP_URL and TURSO_AUTH_TOKEN:
+#         app.logger.info("Starting app with TURSO cloud database (persistent storage)")
+#     else:
+#         app.logger.info("Starting app with LOCAL SQLite database")
+    
+#     create_tables()
+#     create_default_users()
+#     create_hr_tables()
+#     create_default_admin()
+#     create_nkiru_user()
+#     create_christy_user()
+#     add_missing_columns()
+#     sync_existing_users()
+    
+#     debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+#     app.run(host="0.0.0.0", port=port, debug=debug_mode)
+    
+    
+    
+    
 # -------------------- MAIN --------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+    
+    # Log which database mode we're using
+    if USE_SQLITECLOUD and SQLITECLOUD_CONNECTION:
+        app.logger.info("Starting app with SQLite Cloud (persistent storage)")
+    else:
+        app.logger.info("Starting app with LOCAL SQLite database")
     
     create_tables()
     create_default_users()
     create_hr_tables()
     create_default_admin()
-    create_nkiru_user()    # Create Nkiru (Cashier1)
+    create_nkiru_user()
     create_christy_user()
     add_missing_columns()
     sync_existing_users()
