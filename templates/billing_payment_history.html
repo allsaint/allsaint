@@ -781,7 +781,7 @@
                                 </td>
                                 <td>
                                     <i class="fa-regular fa-calendar" style="color: var(--gray-500); margin-right: 0.5rem;"></i>
-                                    {{ payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else 'N/A' }}
+                                    {{ payment.payment_date if payment.payment_date else 'N/A' }}
                                 </td>
                                 <td>
                                     <span class="payment-method">
