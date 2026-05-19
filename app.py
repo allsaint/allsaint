@@ -4107,6 +4107,21 @@ def admin_todays_collection():
     conn = get_db_connection()
     cur = conn.cursor()
     
+    # Initialize default values
+    payment_methods_data = {
+        'Cash': {'amount': 0.0, 'count': 0},
+        'Card': {'amount': 0.0, 'count': 0},
+        'Transfer': {'amount': 0.0, 'count': 0},
+        'POS': {'amount': 0.0, 'count': 0},
+        'Insurance': {'amount': 0.0, 'count': 0},
+        'Other': {'amount': 0.0, 'count': 0}
+    }
+    recent_transactions = []
+    service_type_data = []
+    total_transactions = 0
+    grand_total = 0.0
+    morning_total = afternoon_total = evening_total = 0.0
+    
     try:
         cur.execute("""
             SELECT p.*, bu.username as cashier_name
@@ -4118,23 +4133,62 @@ def admin_todays_collection():
         
         today_payments = cur.fetchall()
         
-        payment_methods_data = {
-            'Cash': {'amount': 0.0, 'count': 0},
-            'Card': {'amount': 0.0, 'count': 0},
-            'Transfer': {'amount': 0.0, 'count': 0},
-            'POS': {'amount': 0.0, 'count': 0},
-            'Insurance': {'amount': 0.0, 'count': 0},
-            'Other': {'amount': 0.0, 'count': 0}
-        }
+        # If no results, return early
+        if not today_payments:
+            cur.close()
+            conn.close()
+            return render_template(
+                "admin_todays_collection.html",
+                today_date=today.strftime("%A, %B %d, %Y"),
+                current_time=datetime.now().strftime("%H:%M:%S"),
+                grand_total=0,
+                cash_total=0,
+                card_total=0,
+                transfer_total=0,
+                pos_total=0,
+                insurance_total=0,
+                other_total=0,
+                payment_methods=[],
+                recent_transactions=[],
+                total_transactions=0,
+                average_transaction=0,
+                highest_transaction=0,
+                lowest_transaction=0,
+                morning_total=0,
+                afternoon_total=0,
+                evening_total=0,
+                service_type_data=[],
+                admin_name=session.get('admin_full_name', 'Admin'),
+                daily_target=500000.00,
+                progress_percentage=0
+            )
         
         total_transactions = len(today_payments)
-        grand_total = 0.0
         amounts = []
         
-        recent_transactions = []
+        # Process each payment - handle both tuple and dict results
         for payment in today_payments:
-            amount_paid = float(payment[7])
-            payment_method = payment[9]
+            # Convert to dict if it's not already (for SQLite Cloud compatibility)
+            if hasattr(payment, 'keys'):
+                # It's a dict-like object
+                amount_paid = float(payment.get('amount_paid', 0))
+                payment_method = payment.get('payment_method', 'Other')
+                patient_name = payment.get('patient_name', 'N/A')
+                service_type = payment.get('service_type', 'N/A')
+                status = payment.get('status', 'Unknown')
+                created_at = payment.get('created_at', datetime.now())
+                cashier_name = payment.get('cashier_name', 'System')
+                payment_id = payment.get('id', 0)
+            else:
+                # It's a tuple/list
+                amount_paid = float(payment[7]) if len(payment) > 7 and payment[7] else 0
+                payment_method = payment[9] if len(payment) > 9 and payment[9] else 'Other'
+                patient_name = payment[1] if len(payment) > 1 and payment[1] else 'N/A'
+                service_type = payment[2] if len(payment) > 2 and payment[2] else 'N/A'
+                status = payment[10] if len(payment) > 10 and payment[10] else 'Unknown'
+                created_at = payment[13] if len(payment) > 13 else datetime.now()
+                cashier_name = payment[14] if len(payment) > 14 and payment[14] else 'System'
+                payment_id = payment[0] if len(payment) > 0 else 0
             
             grand_total += amount_paid
             amounts.append(amount_paid)
@@ -4146,40 +4200,43 @@ def admin_todays_collection():
                 payment_methods_data['Other']['amount'] += amount_paid
                 payment_methods_data['Other']['count'] += 1
             
+            # Handle created_at parsing
+            if created_at:
+                if isinstance(created_at, str):
+                    try:
+                        created_at = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        try:
+                            created_at = datetime.strptime(created_at, '%Y-%m-%d')
+                        except ValueError:
+                            created_at = datetime.now()
+            
             recent_transactions.append({
-                'id': payment[0],
-                'patient_name': payment[1],
-                'service_type': payment[2],
+                'id': payment_id,
+                'patient_name': patient_name,
+                'service_type': service_type,
                 'amount_paid': amount_paid,
                 'payment_method': payment_method,
-                'status': payment[10],
-                'created_at': payment[13],
-                'cashier_name': payment[14]
+                'status': status,
+                'created_at': created_at,
+                'cashier_name': cashier_name
             })
+            
+            # Calculate time-based totals
+            if created_at and hasattr(created_at, 'hour'):
+                hour = created_at.hour
+                if 6 <= hour < 12:
+                    morning_total += amount_paid
+                elif 12 <= hour < 16:
+                    afternoon_total += amount_paid
+                elif 16 <= hour < 22:
+                    evening_total += amount_paid
         
         average_transaction = grand_total / total_transactions if total_transactions > 0 else 0.0
         highest_transaction = max(amounts) if amounts else 0.0
         lowest_transaction = min(amounts) if amounts else 0.0
         
-        morning_total = 0.0
-        afternoon_total = 0.0
-        evening_total = 0.0
-        
-        for payment in today_payments:
-            created_at = payment[13]
-            if created_at:
-                if isinstance(created_at, str):
-                    created_at = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
-                hour = created_at.hour
-                amount = float(payment[7])
-                
-                if 6 <= hour < 12:
-                    morning_total += amount
-                elif 12 <= hour < 16:
-                    afternoon_total += amount
-                elif 16 <= hour < 22:
-                    evening_total += amount
-        
+        # Build payment methods breakdown
         payment_methods = []
         for method_name, data in payment_methods_data.items():
             if data['count'] > 0:
@@ -4191,11 +4248,12 @@ def admin_todays_collection():
                     'percentage': round(percentage, 1)
                 })
         
+        # Get service type breakdown
         cur.execute("""
             SELECT 
                 p.service_type,
                 COUNT(*) as transaction_count,
-                SUM(p.amount_paid) as total_amount
+                COALESCE(SUM(p.amount_paid), 0) as total_amount
             FROM payments p
             WHERE DATE(p.payment_date) = ?
             GROUP BY p.service_type
@@ -4203,33 +4261,34 @@ def admin_todays_collection():
         """, (today.strftime('%Y-%m-%d'),))
         
         service_type_rows = cur.fetchall()
-        service_type_data = []
         for row in service_type_rows:
-            service_type_data.append({
-                'service_type': row[0],
-                'transaction_count': row[1],
-                'total_amount': float(row[2]) if row[2] else 0.0
-            })
+            if hasattr(row, 'keys'):
+                # Dict-like result
+                service_type_data.append({
+                    'service_type': row.get('service_type', 'Other'),
+                    'transaction_count': row.get('transaction_count', 0),
+                    'total_amount': float(row.get('total_amount', 0))
+                })
+            else:
+                # Tuple result
+                service_type_data.append({
+                    'service_type': row[0] if row[0] else 'Other',
+                    'transaction_count': row[1] if len(row) > 1 and row[1] else 0,
+                    'total_amount': float(row[2]) if len(row) > 2 and row[2] else 0.0
+                })
         
         daily_target = 500000.00
         progress_percentage = min(100, (grand_total / daily_target * 100)) if daily_target > 0 else 0
         
     except Exception as e:
         app.logger.error(f"Error fetching today's collection: {e}")
-        recent_transactions = []
-        total_transactions = 0
-        grand_total = 0.0
-        average_transaction = 0.0
-        highest_transaction = 0.0
-        lowest_transaction = 0.0
-        morning_total = afternoon_total = evening_total = 0.0
-        payment_methods = []
-        service_type_data = []
-        progress_percentage = 0
-        flash("Error loading today's collection report", "danger")
-    
-    cur.close()
-    conn.close()
+        import traceback
+        app.logger.error(traceback.format_exc())
+        flash(f"Error loading today's collection report: {str(e)}", "danger")
+        
+    finally:
+        cur.close()
+        conn.close()
     
     today_date = today.strftime("%A, %B %d, %Y")
     
@@ -4258,7 +4317,8 @@ def admin_todays_collection():
         daily_target=daily_target,
         progress_percentage=progress_percentage
     )
-
+    
+    
 @app.route('/admin/drugs/delete-expired', methods=['POST'])
 def admin_delete_expired_drugs():
     if 'admin_id' not in session:
