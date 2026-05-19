@@ -4726,27 +4726,35 @@ def admin_export_todays_collection():
         cur.close()
         conn.close()
 
-# # -------------------- MAIN --------------------
-# if __name__ == "__main__":
-#     port = int(os.environ.get("PORT", 5000))
+# Add this custom filter to your app.py (near other @app.template_filter functions)
+@app.template_filter('month_year')
+def format_month_year(date_value):
+    """Convert date to Month Year format (e.g., Dec 2025)"""
+    if not date_value:
+        return 'N/A'
     
-#     # Log which database mode we're using
-#     if USE_TURSO and TURSO_HTTP_URL and TURSO_AUTH_TOKEN:
-#         app.logger.info("Starting app with TURSO cloud database (persistent storage)")
-#     else:
-#         app.logger.info("Starting app with LOCAL SQLite database")
-    
-#     create_tables()
-#     create_default_users()
-#     create_hr_tables()
-#     create_default_admin()
-#     create_nkiru_user()
-#     create_christy_user()
-#     add_missing_columns()
-#     sync_existing_users()
-    
-#     debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
-#     app.run(host="0.0.0.0", port=port, debug=debug_mode)
+    try:
+        if isinstance(date_value, str):
+            # Handle YYYY-MM-DD format
+            if len(date_value) == 10 and '-' in date_value:
+                year, month, day = date_value.split('-')
+                month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                return f"{month_names[int(month)-1]} {year}"
+            # Handle YYYY-MM format
+            elif len(date_value) == 7 and '-' in date_value:
+                year, month = date_value.split('-')
+                month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                return f"{month_names[int(month)-1]} {year}"
+            else:
+                return date_value
+        elif hasattr(date_value, 'strftime'):
+            return date_value.strftime('%b %Y')
+        else:
+            return str(date_value)
+    except:
+        return str(date_value)
     
     
     

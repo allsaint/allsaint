@@ -16,7 +16,6 @@
         <h3>📦 Pharmacy Stock Report</h3>
 
         <div class="d-flex gap-2">
-            <!-- EXPORT CURRENT VIEW -->
             <a href="{{ url_for('export_stock_report', filter=current_filter) }}"
                class="btn btn-success">
                 ⬇ Download Excel
@@ -29,23 +28,20 @@
         </div>
     </div>
 
-    <!-- FILTER BUTTONS (TABLE ONLY) -->
+    <!-- FILTER BUTTONS -->
     <div class="btn-group mb-4">
         <a href="{{ url_for('stock_report', filter='all') }}"
            class="btn btn-outline-primary {% if current_filter == 'all' %}active{% endif %}">
             All Stock
         </a>
-
         <a href="{{ url_for('stock_report', filter='expired') }}"
            class="btn btn-outline-danger {% if current_filter == 'expired' %}active{% endif %}">
             Expired
         </a>
-
         <a href="{{ url_for('stock_report', filter='expiring') }}"
            class="btn btn-outline-warning {% if current_filter == 'expiring' %}active{% endif %}">
             Expiring Soon
         </a>
-
         <a href="{{ url_for('stock_report', filter='low') }}"
            class="btn btn-outline-dark {% if current_filter == 'low' %}active{% endif %}">
             Low Stock
@@ -62,7 +58,6 @@
                 </div>
             </div>
         </div>
-
         <div class="col-md-3">
             <div class="card summary-card warning">
                 <div class="card-body">
@@ -71,7 +66,6 @@
                 </div>
             </div>
         </div>
-
         <div class="col-md-3">
             <div class="card summary-card low-stock">
                 <div class="card-body">
@@ -80,7 +74,6 @@
                 </div>
             </div>
         </div>
-
         <div class="col-md-3">
             <div class="card summary-card value">
                 <div class="card-body">
@@ -100,7 +93,7 @@
                         <th>Drug</th>
                         <th>Strength</th>
                         <th>Qty</th>
-                        <th>Expiry</th>
+                        <th>Expiry (Month/Year)</th>
                         <th>Days Left</th>
                         <th>Status</th>
                         <th>Unit ₦</th>
@@ -109,7 +102,6 @@
                     </tr>
                 </thead>
                 <tbody>
-
                 {% for d in stock %}
                 <tr class="
                     {% if d.status == 'EXPIRED' %} table-danger
@@ -120,8 +112,8 @@
                     <td>{{ d.name }}</td>
                     <td>{{ d.strength }}</td>
                     <td>{{ d.quantity }}</td>
-                    <td>{{ d.expiry_date }}</td>
-                    <td>{{ d.days_left }}</td>
+                    <td>{{ d.expiry_date|month_year }}</td>  <!-- MUCH CLEANER! -->
+                    <td>{{ d.days_left if d.days_left else '-' }}</td>
                     <td>
                         <span class="badge
                             {% if d.status == 'EXPIRED' %} bg-danger
@@ -132,8 +124,8 @@
                             {{ d.status.replace('_', ' ') }}
                         </span>
                     </td>
-                    <td>{{ d.unit_price }}</td>
-                    <td>{{ d.total_value }}</td>
+                    <td>₦{{ "%.2f"|format(d.unit_price) }}</td>
+                    <td>₦{{ "%.2f"|format(d.total_value) }}</td>
                     <td>{{ d.low_stock_threshold }}</td>
                 </tr>
                 {% else %}
@@ -143,7 +135,6 @@
                     </td>
                 </tr>
                 {% endfor %}
-
                 </tbody>
             </table>
         </div>
