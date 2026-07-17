@@ -1322,24 +1322,80 @@ def format_currency(amount):
 def build_stock_snapshot(rows, today):
     stock = []
     for r in rows:
+        drug_id = r[0]
+        name = r[1]
+        strength = r[2]
+        quantity = r[3]          # stock_quantity – CORRECT
+        price_val = r[4]         # unit_price – CORRECT
         expiry_date = r[5]
-        quantity = r[3]
         threshold = r[6] or 20
 
+        # Safely convert price to float
+        unit_price = 0.0
+        if price_val:
+            try:
+                unit_price = float(price_val)
+            except (ValueError, TypeError):
+                import re
+                numbers = re.findall(r'[\d,]+\.?\d*', str(price_val))
+                if numbers:
+                    try:
+                        unit_price = float(numbers[0].replace(',', ''))
+                    except:
+                        unit_price = 0.0
+
+        # Handle expiry date
+        is_expired = False
+        days_to_expiry = None
+        expiry_date_obj = None
+        
         if expiry_date:
-            expiry_date_obj = datetime.strptime(expiry_date, '%Y-%m-%d').date() if isinstance(expiry_date, str) else expiry_date
-            days_left = (expiry_date_obj - today).days
-            status = "EXPIRED" if days_left < 0 else "EXPIRING_SOON" if days_left <= 30 else "VALID"
+            try:
+                if '/' in str(expiry_date) and len(str(expiry_date)) <= 7:
+                    expiry_parts = str(expiry_date).split('/')
+                    month = int(expiry_parts[0])
+                    year = int(expiry_parts[1])
+                    if month == 12:
+                        expiry_date_obj = datetime(year + 1, 1, 1) - timedelta(days=1)
+                    else:
+                        expiry_date_obj = datetime(year, month + 1, 1) - timedelta(days=1)
+                else:
+                    expiry_date_obj = datetime.strptime(str(expiry_date), '%Y-%m-%d')
+                
+                is_expired = expiry_date_obj.date() < today
+                days_to_expiry = (expiry_date_obj.date() - today).days
+            except (ValueError, IndexError):
+                is_expired = False
+                days_to_expiry = None
+
+        # Status logic
+        if is_expired:
+            status = "EXPIRED"
+        elif days_to_expiry is not None and days_to_expiry <= 30:
+            status = "EXPIRING_SOON"
+        elif (quantity or 0) <= threshold:
+            status = "LOW STOCK"
         else:
-            days_left = None
-            status = "UNKNOWN"
+            status = "NORMAL"
 
         stock.append({
-            "id": r[0], "name": r[1], "strength": r[2],
-            "quantity": quantity, "unit_price": r[4],
-            "expiry_date": expiry_date, "days_left": days_left,
-            "status": status, "low_stock_threshold": threshold,
-            "total_value": quantity * r[4]
+            "id": drug_id,
+            "name": name,
+            "strength": strength or "",
+            "unit_price": unit_price,
+            "price": unit_price,
+            "stock_quantity": quantity or 0,
+            "quantity": quantity or 0,
+            "expiry_date": expiry_date or "",
+            "expiry_date_obj": expiry_date_obj,
+            "is_expired": is_expired,
+            "days_to_expiry": days_to_expiry,
+            "days_left": days_to_expiry,
+            "is_low_stock": (quantity or 0) <= threshold,
+            "low_stock_threshold": threshold,
+            "threshold": threshold,
+            "status": status,
+            "total_value": unit_price * (quantity or 0)
         })
     return stock
 
@@ -1506,37 +1562,43 @@ def format_date_filter(date_value, format='%Y-%m-%d'):
 
 @app.route('/api/drugs')
 def api_drugs():
-    if 'pharmacist_id' not in session:
-        return jsonify([])
-
-    search = request.args.get('q', '').strip()
+    """API endpoint to get all drugs for search."""
+    if "pharmacist_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    import re
     conn = get_db_connection()
-    if not conn:
-        return jsonify([])
-
-    cur = conn.cursor()
-    query = """
-        SELECT id, name, strength, unit_price, stock_quantity
-        FROM drugs
-        WHERE stock_quantity > 0
-    """
-    params = ()
-    
-    if search:
-        query += " AND LOWER(name) LIKE LOWER(?)"
-        params = (f"{search}%",)
-    
-    query += " ORDER BY name ASC"
-    cur.execute(query, params)
-    
-    rows = cur.fetchall()
-    cur.close()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, strength, unit_price, stock_quantity, expiry_date FROM drugs")
+    rows = cursor.fetchall()
+    cursor.close()
     conn.close()
-
-    return jsonify([{
-        "id": r[0], "name": r[1], "strength": r[2],
-        "unit_price": float(r[3]), "stock_quantity": r[4]
-    } for r in rows])
+    
+    result = []
+    for r in rows:
+        # Safely convert price to float
+        price = 0.0
+        if r[3]:
+            try:
+                price = float(r[3])
+            except (ValueError, TypeError):
+                numbers = re.findall(r'[\d,]+\.?\d*', str(r[3]))
+                if numbers:
+                    try:
+                        price = float(numbers[0].replace(',', ''))
+                    except:
+                        price = 0.0
+        
+        result.append({
+            "id": r[0],
+            "name": r[1],
+            "strength": r[2] or "",
+            "unit_price": price,
+            "stock_quantity": r[4] or 0,
+            "expiry_date": r[5] or ""
+        })
+    
+    return jsonify(result)
 
 @app.route('/pharmacy/receipt', methods=['POST'])
 def pharmacy_receipt():
@@ -1846,6 +1908,24 @@ def revenue_report():
     sales = cur.fetchall()
     cur.close()
     conn.close()
+
+    # ---------- FIX: Convert created_at strings to datetime objects ----------
+    sales_converted = []
+    for sale in sales:
+        sale_list = list(sale)
+        created_at = sale_list[4]          # index 4 is created_at
+        if created_at and isinstance(created_at, str):
+            for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
+                try:
+                    sale_list[4] = datetime.strptime(created_at, fmt)
+                    break
+                except ValueError:
+                    continue
+            else:
+                sale_list[4] = None        # fallback if parsing fails
+        sales_converted.append(tuple(sale_list))
+    sales = sales_converted
+    # -----------------------------------------------------------------------
 
     total_revenue = sum(float(s[3]) if s[3] is not None else 0.0 for s in sales)
     months = [(i, month_name[i]) for i in range(1, 13)]
@@ -4756,7 +4836,8 @@ def format_month_year(date_value):
     except:
         return str(date_value)
     
-    
+
+
     
     
 # -------------------- MAIN --------------------

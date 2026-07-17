@@ -2,92 +2,116 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Revenue Report</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy Revenue Report</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/revenue.css') }}">
 </head>
 <body>
-    <h2>Pharmacy Revenue Report</h2>
+    <div class="container">
+        <header>
+            <h1>💊 Pharmacy Revenue Report</h1>
+            <p>All Saint Medical Center Nsukka, Enugu State</p>
+        </header>
 
-    <form method="POST" action="{{ url_for('revenue_report') }}">
-        <!-- Select report period -->
-        <label for="period">Select period:</label>
-        <select name="period" id="period" onchange="toggleInputs()">
-            <option value="daily" {% if period == 'daily' %}selected{% endif %}>Daily</option>
-            <option value="weekly" {% if period == 'weekly' %}selected{% endif %}>Weekly</option>
-            <option value="monthly" {% if period == 'monthly' %}selected{% endif %}>Monthly</option>
-        </select>
+        <!-- Filter Form -->
+        <section class="filter-section">
+            <form method="POST" action="{{ url_for('revenue_report') }}" class="filter-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="period">Period</label>
+                        <select name="period" id="period" onchange="toggleInputs()">
+                            <option value="daily" {% if period == 'daily' %}selected{% endif %}>Daily</option>
+                            <option value="weekly" {% if period == 'weekly' %}selected{% endif %}>Weekly</option>
+                            <option value="monthly" {% if period == 'monthly' %}selected{% endif %}>Monthly</option>
+                        </select>
+                    </div>
 
-        <!-- Daily input -->
-        <div id="daily-input" style="display: {% if period == 'daily' or period == 'weekly' %}block{% else %}none{% endif %};">
-            <label>Date:</label>
-            <input type="date" name="day" value="{{ selected_day if selected_day else start_date }}">
+                    <div class="form-group" id="daily-input" style="display: {% if period == 'daily' or period == 'weekly' %}flex{% else %}none{% endif %};">
+                        <label for="day">Date</label>
+                        <input type="date" name="day" id="day" value="{{ selected_day if selected_day else start_date }}">
+                    </div>
+
+                    <div class="form-group" id="monthly-input" style="display: {% if period == 'monthly' %}flex{% else %}none{% endif %};">
+                        <label for="month">Month</label>
+                        <select name="month" id="month">
+                            {% for num, name in months %}
+                                <option value="{{ num }}" {% if selected_month == num %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                        <label for="year">Year</label>
+                        <select name="year" id="year">
+                            {% for y in years %}
+                                <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Get Revenue</button>
+                        <a href="{{ url_for('pharmacy_dashboard') }}" class="btn btn-secondary">← Dashboard</a>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <!-- Summary Card -->
+        <div class="summary-card">
+            <span class="label">Total Revenue</span>
+            <span class="amount">₦{{ "%.2f"|format(total_revenue) }}</span>
+            <span class="period-badge">{{ period|capitalize }} Report</span>
         </div>
 
-        <!-- Monthly inputs -->
-        <div id="monthly-input" style="display: {% if period == 'monthly' %}block{% else %}none{% endif %};">
-            <label>Month:</label>
-            <select name="month">
-                {% for num, name in months %}
-                    <option value="{{ num }}" {% if selected_month == num %}selected{% endif %}>{{ name }}</option>
-                {% endfor %}
-            </select>
+        <!-- Sales Table -->
+        <section class="table-section">
+            <div class="table-header">
+                <span>{{ sales|length }} transactions found</span>
+                <span>Period: {{ start_date }} – {{ end_date }}</span>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Receipt No</th>
+                            <th>Patient Name</th>
+                            <th>Patient ID</th>
+                            <th>Amount (₦)</th>
+                            <th>Date & Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if sales %}
+                            {% for sale in sales %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td><span class="receipt-id">#{{ sale[0] }}</span></td>
+                                <td>{{ sale[1] if sale[1] else '—' }}</td>
+                                <td>{{ sale[2] if sale[2] else '—' }}</td>
+                                <td class="amount-cell">₦{{ "%.2f"|format(sale[3]) }}</td>
+                                <td>{{ sale[4].strftime("%Y-%m-%d %H:%M") }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="empty-message">No records found for this period.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
-            <label>Year:</label>
-            <select name="year">
-                {% for y in years %}
-                    <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <button type="submit">Get Revenue</button>
-        <a href="{{ url_for('pharmacy_dashboard') }}"
-               class="btn btn-outline-secondary">
-                ← Dashboard
-            </a>
-    </form>
-
-    <!-- Display sales table -->
-    <table border="1" cellpadding="5">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Receipt No</th>
-                <th>Patient Name</th>
-                <th>Patient ID</th>
-                <th>Amount (₦)</th>
-                <th>Date</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% if sales %}
-                {% for sale in sales %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td>{{ sale[0] }}</td>
-                    <td>{{ sale[1] }}</td>
-                    <td>{{ sale[2] }}</td>
-                    <td>₦{{ "%.2f"|format(sale[3]) }}</td>
-                    <td>{{ sale[4].strftime("%Y-%m-%d %H:%M:%S") }}</td>
-                </tr>
-                {% endfor %}
-            {% else %}
-                <tr>
-                    <td colspan="6">No records found.</td>
-                </tr>
-            {% endif %}
-        </tbody>
-    </table>
-
-    <!-- Display total revenue -->
-    <h3>Total Revenue: ₦{{ "%.2f"|format(total_revenue) }}</h3>
+        <footer>
+            <p>© 2026 All Saint Medical Center – Pharmacy Module</p>
+        </footer>
+    </div>
 
     <script>
-    function toggleInputs() {
-        const period = document.getElementById('period').value;
-        document.getElementById('daily-input').style.display = (period === 'daily' || period === 'weekly') ? 'block' : 'none';
-        document.getElementById('monthly-input').style.display = (period === 'monthly') ? 'block' : 'none';
-    }
+        function toggleInputs() {
+            const period = document.getElementById('period').value;
+            document.getElementById('daily-input').style.display = (period === 'daily' || period === 'weekly') ? 'flex' : 'none';
+            document.getElementById('monthly-input').style.display = (period === 'monthly') ? 'flex' : 'none';
+        }
     </script>
 </body>
 </html>
