@@ -4186,7 +4186,7 @@ def admin_todays_collection():
     conn = None
     cur = None
     
-    # Initialize default values
+    # Default values
     payment_methods_data = {
         'Cash': {'amount': 0.0, 'count': 0},
         'Card': {'amount': 0.0, 'count': 0},
@@ -4216,59 +4216,23 @@ def admin_todays_collection():
             ORDER BY p.created_at DESC
         """, (today.strftime('%Y-%m-%d'),))
         
-        today_payments = cur.fetchall()
+        rows = cur.fetchall()
         
-        # If no results, return early (don't close here – finally will handle it)
-        if not today_payments:
-            return render_template(
-                "admin_todays_collection.html",
-                today_date=today.strftime("%A, %B %d, %Y"),
-                current_time=datetime.now().strftime("%H:%M:%S"),
-                grand_total=0,
-                cash_total=0,
-                card_total=0,
-                transfer_total=0,
-                pos_total=0,
-                insurance_total=0,
-                other_total=0,
-                payment_methods=[],
-                recent_transactions=[],
-                total_transactions=0,
-                average_transaction=0,
-                highest_transaction=0,
-                lowest_transaction=0,
-                morning_total=0,
-                afternoon_total=0,
-                evening_total=0,
-                service_type_data=[],
-                admin_name=session.get('admin_full_name', 'Admin'),
-                daily_target=500000.00,
-                progress_percentage=0
-            )
+        # Convert each Row to a dict for easy .get() usage
+        today_payments = [dict(row) for row in rows]
         
         total_transactions = len(today_payments)
         amounts = []
         
-        # Process each payment - handle both tuple and dict results
         for payment in today_payments:
-            if hasattr(payment, 'keys'):
-                amount_paid = float(payment.get('amount_paid', 0))
-                payment_method = payment.get('payment_method', 'Other')
-                patient_name = payment.get('patient_name', 'N/A')
-                service_type = payment.get('service_type', 'N/A')
-                status = payment.get('status', 'Unknown')
-                created_at = payment.get('created_at', datetime.now())
-                cashier_name = payment.get('cashier_name', 'System')
-                payment_id = payment.get('id', 0)
-            else:
-                amount_paid = float(payment[7]) if len(payment) > 7 and payment[7] else 0
-                payment_method = payment[9] if len(payment) > 9 and payment[9] else 'Other'
-                patient_name = payment[1] if len(payment) > 1 and payment[1] else 'N/A'
-                service_type = payment[2] if len(payment) > 2 and payment[2] else 'N/A'
-                status = payment[10] if len(payment) > 10 and payment[10] else 'Unknown'
-                created_at = payment[13] if len(payment) > 13 else datetime.now()
-                cashier_name = payment[14] if len(payment) > 14 and payment[14] else 'System'
-                payment_id = payment[0] if len(payment) > 0 else 0
+            amount_paid = float(payment.get('amount_paid', 0))
+            payment_method = payment.get('payment_method', 'Other')
+            patient_name = payment.get('patient_name', 'N/A')
+            service_type = payment.get('service_type', 'N/A')
+            status = payment.get('status', 'Unknown')
+            created_at = payment.get('created_at', datetime.now())
+            cashier_name = payment.get('cashier_name', 'System')
+            payment_id = payment.get('id', 0)
             
             grand_total += amount_paid
             amounts.append(amount_paid)
@@ -4280,15 +4244,16 @@ def admin_todays_collection():
                 payment_methods_data['Other']['amount'] += amount_paid
                 payment_methods_data['Other']['count'] += 1
             
-            if created_at:
-                if isinstance(created_at, str):
+            # Parse created_at if it's a string
+            if created_at and isinstance(created_at, str):
+                for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
                     try:
-                        created_at = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                        created_at = datetime.strptime(created_at, fmt)
+                        break
                     except ValueError:
-                        try:
-                            created_at = datetime.strptime(created_at, '%Y-%m-%d')
-                        except ValueError:
-                            created_at = datetime.now()
+                        continue
+                else:
+                    created_at = datetime.now()
             
             recent_transactions.append({
                 'id': payment_id,
@@ -4325,6 +4290,7 @@ def admin_todays_collection():
                     'percentage': round(percentage, 1)
                 })
         
+        # Service type breakdown
         cur.execute("""
             SELECT 
                 p.service_type,
@@ -4336,20 +4302,13 @@ def admin_todays_collection():
             ORDER BY total_amount DESC
         """, (today.strftime('%Y-%m-%d'),))
         
-        service_type_rows = cur.fetchall()
-        for row in service_type_rows:
-            if hasattr(row, 'keys'):
-                service_type_data.append({
-                    'service_type': row.get('service_type', 'Other'),
-                    'transaction_count': row.get('transaction_count', 0),
-                    'total_amount': float(row.get('total_amount', 0))
-                })
-            else:
-                service_type_data.append({
-                    'service_type': row[0] if row[0] else 'Other',
-                    'transaction_count': row[1] if len(row) > 1 and row[1] else 0,
-                    'total_amount': float(row[2]) if len(row) > 2 and row[2] else 0.0
-                })
+        service_rows = cur.fetchall()
+        for row in service_rows:
+            service_type_data.append({
+                'service_type': row[0] if row[0] else 'Other',
+                'transaction_count': row[1] if row[1] else 0,
+                'total_amount': float(row[2]) if row[2] else 0.0
+            })
         
         daily_target = 500000.00
         progress_percentage = min(100, (grand_total / daily_target * 100)) if daily_target > 0 else 0
@@ -4359,11 +4318,9 @@ def admin_todays_collection():
         import traceback
         app.logger.error(traceback.format_exc())
         flash(f"Error loading today's collection report: {str(e)}", "danger")
-        # Return a fallback template or redirect
         return redirect(url_for('admin_dashboard'))
     
     finally:
-        # Close cursor and connection safely
         if cur:
             cur.close()
         if conn:
