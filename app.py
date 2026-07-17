@@ -4183,9 +4183,8 @@ def admin_todays_collection():
         return redirect(url_for('admin_login'))
     
     today = date.today()
-    
-    conn = get_db_connection()
-    cur = conn.cursor()
+    conn = None
+    cur = None
     
     # Initialize default values
     payment_methods_data = {
@@ -4203,6 +4202,12 @@ def admin_todays_collection():
     morning_total = afternoon_total = evening_total = 0.0
     
     try:
+        conn = get_db_connection()
+        if not conn:
+            flash("Database connection error", "danger")
+            return redirect(url_for('admin_dashboard'))
+        
+        cur = conn.cursor()
         cur.execute("""
             SELECT p.*, bu.username as cashier_name
             FROM payments p
@@ -4213,10 +4218,8 @@ def admin_todays_collection():
         
         today_payments = cur.fetchall()
         
-        # If no results, return early
+        # If no results, return early (don't close here – finally will handle it)
         if not today_payments:
-            cur.close()
-            conn.close()
             return render_template(
                 "admin_todays_collection.html",
                 today_date=today.strftime("%A, %B %d, %Y"),
@@ -4248,9 +4251,7 @@ def admin_todays_collection():
         
         # Process each payment - handle both tuple and dict results
         for payment in today_payments:
-            # Convert to dict if it's not already (for SQLite Cloud compatibility)
             if hasattr(payment, 'keys'):
-                # It's a dict-like object
                 amount_paid = float(payment.get('amount_paid', 0))
                 payment_method = payment.get('payment_method', 'Other')
                 patient_name = payment.get('patient_name', 'N/A')
@@ -4260,7 +4261,6 @@ def admin_todays_collection():
                 cashier_name = payment.get('cashier_name', 'System')
                 payment_id = payment.get('id', 0)
             else:
-                # It's a tuple/list
                 amount_paid = float(payment[7]) if len(payment) > 7 and payment[7] else 0
                 payment_method = payment[9] if len(payment) > 9 and payment[9] else 'Other'
                 patient_name = payment[1] if len(payment) > 1 and payment[1] else 'N/A'
@@ -4280,7 +4280,6 @@ def admin_todays_collection():
                 payment_methods_data['Other']['amount'] += amount_paid
                 payment_methods_data['Other']['count'] += 1
             
-            # Handle created_at parsing
             if created_at:
                 if isinstance(created_at, str):
                     try:
@@ -4302,7 +4301,6 @@ def admin_todays_collection():
                 'cashier_name': cashier_name
             })
             
-            # Calculate time-based totals
             if created_at and hasattr(created_at, 'hour'):
                 hour = created_at.hour
                 if 6 <= hour < 12:
@@ -4316,7 +4314,6 @@ def admin_todays_collection():
         highest_transaction = max(amounts) if amounts else 0.0
         lowest_transaction = min(amounts) if amounts else 0.0
         
-        # Build payment methods breakdown
         payment_methods = []
         for method_name, data in payment_methods_data.items():
             if data['count'] > 0:
@@ -4328,7 +4325,6 @@ def admin_todays_collection():
                     'percentage': round(percentage, 1)
                 })
         
-        # Get service type breakdown
         cur.execute("""
             SELECT 
                 p.service_type,
@@ -4343,14 +4339,12 @@ def admin_todays_collection():
         service_type_rows = cur.fetchall()
         for row in service_type_rows:
             if hasattr(row, 'keys'):
-                # Dict-like result
                 service_type_data.append({
                     'service_type': row.get('service_type', 'Other'),
                     'transaction_count': row.get('transaction_count', 0),
                     'total_amount': float(row.get('total_amount', 0))
                 })
             else:
-                # Tuple result
                 service_type_data.append({
                     'service_type': row[0] if row[0] else 'Other',
                     'transaction_count': row[1] if len(row) > 1 and row[1] else 0,
@@ -4365,10 +4359,15 @@ def admin_todays_collection():
         import traceback
         app.logger.error(traceback.format_exc())
         flash(f"Error loading today's collection report: {str(e)}", "danger")
-        
+        # Return a fallback template or redirect
+        return redirect(url_for('admin_dashboard'))
+    
     finally:
-        cur.close()
-        conn.close()
+        # Close cursor and connection safely
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
     
     today_date = today.strftime("%A, %B %d, %Y")
     
@@ -4396,8 +4395,7 @@ def admin_todays_collection():
         admin_name=session.get('admin_full_name', 'Admin'),
         daily_target=daily_target,
         progress_percentage=progress_percentage
-    )
-    
+    )    
     
 @app.route('/admin/drugs/delete-expired', methods=['POST'])
 def admin_delete_expired_drugs():
